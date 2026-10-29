@@ -1,0 +1,122 @@
+# Mosquitto broker configuration, running on the mosquitto-go-auth plugin
+# (iegomez/mosquitto-go-auth) instead of Mosquitto's native password_file/
+# acl_file mechanism. Two backends are chained:
+#   - "files": the two internal service accounts (bms-ingestion,
+#     bms-api-realtime-bridge) — static, rarely rotated, fine as a file.
+#   - "postgres": per-tenant device credentials, managed live via the
+#     MQTT Credentials admin UI (Bms.Api -> MqttCredentials table). New
+#     credentials work immediately — no file edit or broker restart needed.
+#
+# NOTE: this image expects its config at /etc/mosquitto/mosquitto.conf,
+# NOT /mosquitto/config/mosquitto.conf like plain eclipse-mosquitto:2 —
+# see the volume mount in docker-compose.yml.
+#
+# Copy this file to mosquitto.conf and fill in auth_opt_pg_password with
+# your real local Postgres password (matches ConnectionStrings:Postgres in
+# appsettings.Development.json) — mosquitto.conf is git-ignored because,
+# unlike the other secrets in this repo, Mosquitto's config format has no
+# environment-variable substitution to keep the plaintext value out of a
+# tracked file.
+
+# ---- Durability ---------------------------------------------------------
+# Persistent MQTT sessions (Bms.Ingestion connects with Clean Start = false
+# and a 24 h Session Expiry Interval) make the broker queue every QoS 1
+# message for the ingestion service while it is disconnected. These settings
+# decide how much it can hold and whether that survives a broker restart.
+# See docs/mqtt/reliability.md for what is and isn't recoverable.
+persistence true
+persistence_location /mosquitto/data/
+
+# QoS 0 messages are never queued for offline clients (devices publish QoS 1).
+queue_qos0_messages false
+
+# Sized per deployment, so rendered from environment variables by
+# docker-entrypoint.sh into /mosquitto/conf.d/10-durability.conf:
+#   autosave_interval             MOSQUITTO_AUTOSAVE_INTERVAL            (default 60 s)
+#   max_queued_messages           MOSQUITTO_MAX_QUEUED_MESSAGES          (default 100000)
+#   max_queued_bytes              MOSQUITTO_MAX_QUEUED_BYTES             (default 104857600 = 100 MiB)
+#   persistent_client_expiration  MOSQUITTO_PERSISTENT_CLIENT_EXPIRATION (default 1d)
+# The limits are per client: once bms-ingestion's queue is full, further
+# messages for it are DROPPED by the broker (logged), not blocked.
+include_dir /mosquitto/conf.d
+
+log_dest stdout
+log_type error
+log_type warning
+log_type notice
+
+# Plain MQTT (TCP) — used on trusted/dev networks only.
+listener 1883
+protocol mqtt
+
+# MQTTS (MQTT over TLS) — used in production and whenever devices are
+# reached over an untrusted network. Certs are generated locally by
+# infrastructure/mosquitto/certs/generate-dev-certs.sh (self-signed,
+# git-ignored) — fine for testing this listener works, NOT what production
+# should ship. A real deployment swaps server.crt/server.key for
+# certificates from a real CA (Let's Encrypt or your org's internal CA)
+# once a real domain exists; nothing else about this config needs to change.
+listener 8883
+protocol mqtt
+cafile /mosquitto/config/certs/ca.crt
+certfile /mosquitto/config/certs/server.crt
+keyfile /mosquitto/config/certs/server.key
+
+# No anonymous access — every client (devices and the API) authenticates
+# via the go-auth plugin below.
+allow_anonymous false
+
+auth_plugin /mosquitto/go-auth.so
+auth_opt_log_level info
+auth_opt_backends files, postgres
+auth_opt_check_prefix false
+auth_opt_hasher bcrypt
+
+# Static file backend — internal service accounts only. Passwords are
+# hashed with this plugin's own /mosquitto/pw utility (bcrypt), NOT the
+# native mosquitto_passwd tool — the two hash formats are incompatible.
+auth_opt_files_password_path /mosquitto/config/passwd
+auth_opt_files_acl_path /mosquitto/config/acl
+
+# Postgres backend — per-tenant device credentials (MqttCredentials table).
+# host.docker.internal resolves to the Docker host, where the real Postgres
+# runs as a native Homebrew service (not a docker-compose container).
+auth_opt_pg_host host.docker.internal
+auth_opt_pg_port 5432
+auth_opt_pg_dbname bms_platform
+auth_opt_pg_user bms_app
+auth_opt_pg_password change-me
+auth_opt_pg_sslmode disable
+auth_opt_pg_userquery select "PasswordHash" from "MqttCredentials" where "Username" = $1
+# NOT optional — omitting this makes the postgres backend's ACL check
+# always return true (open access to every topic for every authenticated
+# user). This query reproduces the same iot/<tenant>/+/+/# isolation
+# pattern the old static acl file enforced.
+auth_opt_pg_aclquery select 'iot/' || "Username" || '/+/+/#' from "MqttCredentials" where "Username" = $1
+auth_opt_pg_hasher bcrypt
+
+# --- Authentication cache -------------------------------------------------
+# Without this, EVERY device connection and EVERY publish re-queries
+# PostgreSQL. That couples the broker's availability to the database's: a
+# PostgreSQL restart does not just pause ingestion, it starts REFUSING
+# device connections, so devices drop off the broker during exactly the
+# outage the broker is supposed to absorb.
+#
+# Caching decouples the common case. Understand its limits before relying
+# on it:
+#   * It only helps devices whose credentials are already cached. A device
+#     connecting for the first time during an outage is still refused.
+#   * It only covers an outage shorter than the TTL. A long outage still
+#     expires every entry.
+#   * Revocation is delayed by up to the TTL: disabling a device in the
+#     dashboard takes effect within auth_cache_seconds, not instantly.
+#     Shorten the TTL if that matters more than outage tolerance.
+# Jitter spreads expiry so a whole fleet's entries do not lapse in the same
+# second and stampede the database.
+auth_opt_cache true
+auth_opt_cache_type go-cache
+auth_opt_auth_cache_seconds 300
+auth_opt_acl_cache_seconds 300
+auth_opt_auth_jitter_seconds 15
+auth_opt_acl_jitter_seconds 15
+auth_opt_cache_refresh true

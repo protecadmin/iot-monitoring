@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.19.1-beta.1" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bms.Application\Bms.Application.csproj" />
+    <ProjectReference Include="..\Bms.Infrastructure\Bms.Infrastructure.csproj" />
+    <ProjectReference Include="..\Bms.Protocols\Bms.Protocols.csproj" />
+    <ProjectReference Include="..\Bms.Alerting\Bms.Alerting.csproj" />
+    <ProjectReference Include="..\Bms.Calculations\Bms.Calculations.csproj" />
+    <ProjectReference Include="..\Bms.Connectors.Core\Bms.Connectors.Core.csproj" />
+    <ProjectReference Include="..\Bms.DeviceManagement\Bms.DeviceManagement.csproj" />
+    <ProjectReference Include="..\Bms.Ingestion\Bms.Ingestion.csproj" />
+  </ItemGroup>
+
+</Project>

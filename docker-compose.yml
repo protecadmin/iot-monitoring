@@ -1,0 +1,195 @@
+services:
+  postgres:
+    restart: unless-stopped
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bms_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-bms_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bms_app} -d ${POSTGRES_DB:-bms_platform}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  influxdb:
+    restart: unless-stopped
+    image: influxdb:2
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_ADMIN_USER:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD:-change-me}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-bms-platform}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-telemetry}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN:-change-me-influx-admin-token}
+    ports:
+      - "${INFLUXDB_PORT:-8086}:8086"
+    volumes:
+      - influxdata:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mosquitto:
+    image: iegomez/mosquitto-go-auth:latest
+    restart: unless-stopped
+    # Renders the queue/persistence limits below into the broker config
+    # (Mosquitto can't read environment variables itself), then starts it.
+    entrypoint: ["/usr/bin/tini", "--", "/bin/sh", "/docker-entrypoint-bms.sh"]
+    environment:
+      # Size these for the longest ingestion outage you must survive — see
+      # docs/mqtt/reliability.md "Sizing the broker queue".
+      MOSQUITTO_AUTOSAVE_INTERVAL: ${MOSQUITTO_AUTOSAVE_INTERVAL:-60}
+      MOSQUITTO_MAX_QUEUED_MESSAGES: ${MOSQUITTO_MAX_QUEUED_MESSAGES:-100000}
+      MOSQUITTO_MAX_QUEUED_BYTES: ${MOSQUITTO_MAX_QUEUED_BYTES:-104857600}
+      MOSQUITTO_PERSISTENT_CLIENT_EXPIRATION: ${MOSQUITTO_PERSISTENT_CLIENT_EXPIRATION:-1d}
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/1883"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+      - "${MQTTS_PORT:-8883}:8883"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # This image reads its config from /etc/mosquitto/mosquitto.conf,
+      # NOT /mosquitto/config/mosquitto.conf like plain eclipse-mosquitto:2.
+      - ./infrastructure/mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro
+      # Real password file is git-ignored; generate it from passwd.example
+      # (see infrastructure/mosquitto/passwd.example) before first run.
+      - ./infrastructure/mosquitto/passwd:/mosquitto/config/passwd:ro
+      # No secrets in here (usernames/topic patterns only) — committed directly.
+      - ./infrastructure/mosquitto/acl:/mosquitto/config/acl:ro
+      # Self-signed dev certs (git-ignored) — generate with
+      # infrastructure/mosquitto/certs/generate-dev-certs.sh before first run.
+      - ./infrastructure/mosquitto/certs:/mosquitto/config/certs:ro
+      - ./infrastructure/mosquitto/docker-entrypoint.sh:/docker-entrypoint-bms.sh:ro
+      # Holds mosquitto.db — the persistent sessions and their queued
+      # messages. Keep this volume across upgrades/restarts.
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+
+  api:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB:-bms_platform};Username=${POSTGRES_USER:-bms_app};Password=${POSTGRES_PASSWORD:-change-me}
+      InfluxDb__Url: http://influxdb:8086
+      InfluxDb__Org: ${INFLUXDB_ORG:-bms-platform}
+      InfluxDb__Bucket: ${INFLUXDB_BUCKET:-telemetry}
+      InfluxDb__Token: ${INFLUXDB_ADMIN_TOKEN:-change-me-influx-admin-token}
+      Mqtt__Host: mosquitto
+      Mqtt__Port: 1883
+      Mqtt__ClientId: bms-api-realtime-bridge
+      Mqtt__Username: ${MQTT_BRIDGE_USERNAME:-bms-api-realtime-bridge}
+      Mqtt__Password: ${MQTT_BRIDGE_PASSWORD:-change-me}
+      Jwt__SecretKey: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set in .env}
+      Cors__AllowedOrigins__0: http://localhost:${WEB_PORT:-3000}
+      # Firmware binaries live on a volume so they survive rebuilds; devices
+      # download from PublicBaseUrl, which must be reachable from them.
+      Firmware__StoragePath: /data/firmware
+      Firmware__PublicBaseUrl: ${FIRMWARE_PUBLIC_BASE_URL:-http://localhost:5000}
+      Connectors__ServiceApiKey: ${CONNECTOR_SERVICE_API_KEY:-change-me-connector-service-key}
+    volumes:
+      - firmware-data:/data/firmware
+    ports:
+      - "${API_PORT:-5000}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/ingestion.Dockerfile
+    restart: unless-stopped
+    # Time to publish its "offline" status and finish the in-flight message
+    # on `docker compose stop`; anything unfinished stays unacknowledged in
+    # the broker session and is redelivered on restart.
+    stop_grace_period: 30s
+    environment:
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB:-bms_platform};Username=${POSTGRES_USER:-bms_app};Password=${POSTGRES_PASSWORD:-change-me}
+      InfluxDb__Url: http://influxdb:8086
+      InfluxDb__Org: ${INFLUXDB_ORG:-bms-platform}
+      InfluxDb__Bucket: ${INFLUXDB_BUCKET:-telemetry}
+      InfluxDb__Token: ${INFLUXDB_ADMIN_TOKEN:-change-me-influx-admin-token}
+      Mqtt__Host: mosquitto
+      Mqtt__Port: 1883
+      # Fixed client id + persistent session: the broker queues QoS 1
+      # telemetry for this id while ingestion is down. Never randomize it,
+      # and never run two ingestion containers with the same id.
+      Mqtt__ClientId: bms-ingestion
+      Mqtt__SessionExpirySeconds: ${MQTT_INGESTION_SESSION_EXPIRY_SECONDS:-86400}
+      Mqtt__Username: ${MQTT_INGESTION_USERNAME:-bms-ingestion}
+      Mqtt__Password: ${MQTT_INGESTION_PASSWORD:-change-me}
+      Metrics__PrometheusPort: 9464
+    ports:
+      # Reliability counters for a scraper on the private network. Bind to
+      # loopback by default — these are operational internals, not something
+      # to expose publicly.
+      - "${INGESTION_METRICS_BIND:-127.0.0.1}:${INGESTION_METRICS_PORT:-9464}:9464"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+
+  connectors:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/connectors.Dockerfile
+    restart: unless-stopped
+    environment:
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectorService__ApiBaseUrl: http://api:8080
+      ConnectorService__ApiKey: ${CONNECTOR_SERVICE_API_KEY:-change-me-connector-service-key}
+      ConnectorService__Mqtt__Host: mosquitto
+      ConnectorService__Mqtt__Port: 1883
+      ConnectorService__Mqtt__Username: bms-connectors
+      ConnectorService__Mqtt__Password: ${MQTT_CONNECTORS_PASSWORD:-change-me}
+    ports:
+      # Devices connect here directly; open the same range in the firewall /
+      # AWS security group, once. Connectors may only use ports inside it.
+      - "${CONNECTOR_PORT_RANGE:-12000-12099}:${CONNECTOR_PORT_RANGE:-12000-12099}"
+    depends_on:
+      - api
+      - mosquitto
+
+  web:
+    restart: unless-stopped
+    build:
+      context: ./src/frontend/bms-dashboard
+      dockerfile: ../../../infrastructure/docker/web.Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-http://localhost:5000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+
+volumes:
+  firmware-data:
+  pgdata:
+  influxdata:
+  mosquitto-data:
+  mosquitto-log:

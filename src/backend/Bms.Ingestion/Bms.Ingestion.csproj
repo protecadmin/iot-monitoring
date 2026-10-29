@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-Bms.Ingestion-c9985c9a-af3a-402b-ac47-7be124401d97</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Kestrel, purely to serve the Prometheus scrape endpoint. The
+         HttpListener-based exporter cannot bind all interfaces on this
+         platform (neither "*"/"+" nor "0.0.0.0" is accepted), and a metrics
+         exporter that fails to bind takes the whole worker down with it. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.19.1-beta.1" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bms.Application\Bms.Application.csproj" />
+    <ProjectReference Include="..\Bms.Domain\Bms.Domain.csproj" />
+    <ProjectReference Include="..\Bms.Protocols\Bms.Protocols.csproj" />
+    <ProjectReference Include="..\Bms.Infrastructure\Bms.Infrastructure.csproj" />
+    <ProjectReference Include="..\Bms.Alerting\Bms.Alerting.csproj" />
+    <ProjectReference Include="..\Bms.Calculations\Bms.Calculations.csproj" />
+    <ProjectReference Include="..\Bms.DeviceManagement\Bms.DeviceManagement.csproj" />
+  </ItemGroup>
+
+  <!--
+    Bms.Api references this project (it hosts the sweep workers). Content
+    marked for publish flows into a referencing project's publish, so Bms.Api's
+    publish would receive a second appsettings.json and fail with NETSDK1152.
+    Keep these out of the flowing items and add them back for this project's
+    own publish only.
+  -->
+  <ItemGroup>
+    <Content Update="appsettings*.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+  <Target Name="PublishOwnAppSettings" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(Content)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('appsettings'))" RelativePath="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>

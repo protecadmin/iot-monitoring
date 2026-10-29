@@ -1,0 +1,706 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>BMS Telemetry Flow</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f5f7f8;
+    --surface: #ffffff;
+    --surface-2: #eef2f4;
+    --ink: #16212a;
+    --muted: #5a6b78;
+    --line: #d9e1e6;
+    --line-strong: #bcc9d1;
+    --raw: #0f7d84;
+    --derived: #6a4bd6;
+    --warn: #a85a10;
+    --bad: #a82f26;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1317;
+      --surface: #141d23;
+      --surface-2: #1b262d;
+      --ink: #e4edf2;
+      --muted: #8fa3b0;
+      --line: #23323b;
+      --line-strong: #33454f;
+      --raw: #3cc4c9;
+      --derived: #a58cff;
+      --warn: #e2963f;
+      --bad: #ef8b80;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1317;
+    --surface: #141d23;
+    --surface-2: #1b262d;
+    --ink: #e4edf2;
+    --muted: #8fa3b0;
+    --line: #23323b;
+    --line-strong: #33454f;
+    --raw: #3cc4c9;
+    --derived: #a58cff;
+    --warn: #e2963f;
+    --bad: #ef8b80;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    padding-inline: 20px;
+    padding-block: 0 72px;
+  }
+  .wrap { max-width: 1120px; margin-inline: auto; }
+
+  header.page { padding-block: 56px 40px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--raw);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(30px, 5vw, 46px);
+    line-height: 1.08;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .lead { font-size: 17px; color: var(--muted); max-width: 64ch; margin: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted);
+  }
+
+  section { padding-block: 44px; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: 0; }
+  h2 {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 8px;
+  }
+  h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 32px 0 10px;
+  }
+  .sub { color: var(--muted); margin: 0 0 26px; max-width: 70ch; }
+  p { max-width: 72ch; }
+
+  figure { margin: 0; }
+  .scroll { overflow-x: auto; }
+  svg.diagram {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-width: 720px;
+    color: var(--ink);
+  }
+  figcaption {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 12px;
+    max-width: 72ch;
+  }
+  .box { fill: var(--surface); stroke: var(--line-strong); }
+  .band { fill: var(--surface-2); stroke: var(--line); }
+  .t { font-family: var(--sans); font-size: 13px; fill: var(--ink); }
+  .tb { font-family: var(--sans); font-size: 13px; font-weight: 600; fill: var(--ink); }
+  .tm { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+  .ts { font-family: var(--sans); font-size: 11.5px; fill: var(--muted); }
+  .lbl { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+  .flow { stroke: var(--line-strong); stroke-width: 1.4; fill: none; }
+  .flow-raw { stroke: var(--raw); stroke-width: 1.6; fill: none; }
+  .flow-derived { stroke: var(--derived); stroke-width: 1.6; fill: none; }
+  .flow-drop { stroke: var(--muted); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+  .flow-bad { stroke: var(--bad); stroke-width: 1.2; fill: none; }
+  .edge-raw { stroke: var(--raw); }
+  .edge-derived { stroke: var(--derived); }
+
+  .tw { overflow-x: auto; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  td.num { font-variant-numeric: tabular-nums; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .note {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--raw);
+    border-radius: 6px;
+    padding: 16px 18px;
+    margin-top: 26px;
+  }
+  .note.derived { border-left-color: var(--derived); }
+  .note p { margin: 0; font-size: 14px; }
+  .note strong { font-weight: 600; }
+  ol.steps { padding-left: 0; list-style: none; counter-reset: s; margin: 0; display: grid; gap: 14px; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; gap: 12px; font-size: 14px; }
+  ol.steps li::before {
+    content: counter(s, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--raw);
+    padding-top: 3px;
+  }
+  footer.page { padding-block: 36px 0; color: var(--muted); font-size: 13px; }
+  @media (max-width: 640px) {
+    header.page { padding-block: 36px 28px; }
+    section { padding-block: 32px; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="page">
+    <p class="eyebrow">Architecture reference</p>
+    <h1>BMS Telemetry Flow</h1>
+    <p class="lead">
+      A meter reading crosses a broker, survives five checks, lands in two stores, and reaches a browser in under a
+      second. The Calculations module adds a second, derived value along the same path — without touching the first.
+    </p>
+    <div class="chips">
+      <span class="chip">2 processes</span>
+      <span class="chip">MQTT via our gateway</span>
+      <span class="chip">JSON payloads</span>
+      <span class="chip">PostgreSQL + InfluxDB</span>
+      <span class="chip">SignalR</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>One reading, end to end</h2>
+    <p class="sub">
+      Devices never talk to the API. Everything arrives through <code>Bms.Ingestion</code>, which owns the transports and
+      the pipeline; <code>Bms.Api</code> serves the dashboard and holds the realtime hub.
+    </p>
+
+    <figure>
+      <div class="scroll">
+        <svg class="diagram" viewBox="0 0 1160 320" role="img"
+             aria-label="Devices report through our gateway, which publishes over MQTT into the ingestion process, which writes to PostgreSQL and InfluxDB, sends alerts, and pushes realtime events through the API to the dashboard.">
+          <defs>
+            <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+            </marker>
+          </defs>
+
+          <text class="lbl" x="16" y="26">DEVICES</text>
+          <text class="lbl" x="200" y="26">TRANSPORT</text>
+          <text class="lbl" x="460" y="26">INGESTION PROCESS</text>
+          <text class="lbl" x="720" y="26">STORES</text>
+          <text class="lbl" x="950" y="26">DELIVERY</text>
+
+          <rect class="box" x="16" y="60" width="150" height="40" rx="6"></rect>
+          <text class="t" x="30" y="85">Energy meter</text>
+          <rect class="box" x="16" y="124" width="150" height="40" rx="6"></rect>
+          <text class="t" x="30" y="149">AHU / chiller</text>
+          <rect class="box" x="16" y="188" width="150" height="40" rx="6"></rect>
+          <text class="t" x="30" y="213">Gateway</text>
+
+          <rect class="box" x="200" y="54" width="210" height="56" rx="6"></rect>
+          <text class="tb" x="214" y="76">MQTT broker</text>
+          <text class="tm" x="214" y="95">iot/{tenant}/{site}/{dev}/telemetry</text>
+          <text class="tm" x="214" y="140">Our gateway reads each device</text>
+          <text class="tm" x="214" y="158">natively and publishes JSON</text>
+          <text class="tm" x="214" y="176">keyed by BMS parameter keys</text>
+
+          <g class="flow" marker-end="url(#a1)">
+            <line x1="166" y1="80" x2="196" y2="80"></line>
+            <line x1="166" y1="144" x2="196" y2="96"></line>
+            <line x1="166" y1="208" x2="196" y2="104"></line>
+            <line x1="410" y1="82" x2="456" y2="110"></line>
+          </g>
+
+          <rect class="box" x="460" y="54" width="210" height="184" rx="6"></rect>
+          <text class="tb" x="474" y="78">Bms.Ingestion</text>
+          <text class="tm" x="474" y="102">MqttIngestionWorker</text>
+          <text class="tm" x="474" y="120">JsonPayloadDecoder</text>
+          <line x1="474" y1="134" x2="656" y2="134" stroke="var(--line)"></line>
+          <text class="tm" x="474" y="156">IngestionPipeline</text>
+          <text class="ts" x="474" y="176">decode → map → filter</text>
+          <text class="ts" x="474" y="194">validate → dedup</text>
+          <text class="ts" x="474" y="212">→ persist → effects</text>
+
+          <rect class="box" x="720" y="64" width="180" height="72" rx="6"></rect>
+          <text class="tb" x="734" y="88">PostgreSQL</text>
+          <text class="ts" x="734" y="107">devices · rules · state</text>
+          <text class="ts" x="734" y="124">raw message log</text>
+          <rect class="box" x="720" y="164" width="180" height="72" rx="6"></rect>
+          <text class="tb" x="734" y="188">InfluxDB</text>
+          <text class="ts" x="734" y="207">measurement</text>
+          <text class="tm" x="734" y="225">"telemetry"</text>
+
+          <g class="flow-raw" marker-end="url(#a1)">
+            <line x1="670" y1="100" x2="716" y2="100"></line>
+            <line x1="670" y1="200" x2="716" y2="200"></line>
+          </g>
+          <text class="lbl" x="676" y="92">persist</text>
+          <text class="lbl" x="676" y="192">write reading</text>
+
+          <rect class="box" x="950" y="96" width="194" height="64" rx="6"></rect>
+          <text class="tb" x="964" y="120">Bms.Api</text>
+          <text class="ts" x="964" y="140">REST + SignalR hub</text>
+          <rect class="box" x="950" y="196" width="194" height="48" rx="6"></rect>
+          <text class="tb" x="964" y="225">Dashboard</text>
+          <rect class="box" x="460" y="264" width="210" height="40" rx="6"></rect>
+          <text class="t" x="474" y="289">Email · Telegram</text>
+
+          <g class="flow" marker-end="url(#a1)">
+            <polyline points="670,70 1047,70 1047,92"></polyline>
+            <line x1="900" y1="104" x2="946" y2="116"></line>
+            <line x1="900" y1="192" x2="946" y2="146"></line>
+            <line x1="1047" y1="160" x2="1047" y2="192"></line>
+            <line x1="565" y1="238" x2="565" y2="260"></line>
+          </g>
+          <text class="lbl" x="742" y="62">realtime events via broker</text>
+          <text class="lbl" x="906" y="130">reads</text>
+          <text class="lbl" x="1053" y="180">push</text>
+          <text class="lbl" x="575" y="254">critical alerts</text>
+        </svg>
+      </div>
+      <figcaption>
+        Two processes, one broker. Ingestion writes the reading and publishes an event; the API reads the stores and
+        relays that event to browsers. Nothing in the delivery column can block ingestion.
+      </figcaption>
+    </figure>
+
+    <h3>After a reading is accepted, five things happen — separately</h3>
+    <p class="sub" style="margin-bottom:18px">
+      Each runs in isolation, so one failure can't take the others down. An InfluxDB outage must not also stop alerting,
+      which matters more during an outage, not less.
+    </p>
+    <ol class="steps">
+      <li>Write the reading to InfluxDB.</li>
+      <li>Update the device's last-seen state.</li>
+      <li>Push <code>TelemetryUpdated</code> to the dashboard.</li>
+      <li>Run Calculation Rules and push any derived value.</li>
+      <li>Evaluate Alert Rules, then email and Telegram for critical ones.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Inside the pipeline</h2>
+    <p class="sub">
+      Seven stages between a raw frame and a stored reading. Five can reject; one silently drops fields, which is a
+      different thing and drawn differently.
+    </p>
+
+    <figure>
+      <div class="scroll">
+        <svg class="diagram" viewBox="0 0 1160 250" role="img"
+             aria-label="Seven pipeline stages in sequence: resolve device, decode, map, device-type filter, validate, duplicate check, persist. Five stages reject with a recorded reason; the filter drops unknown keys instead.">
+          <defs>
+            <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+            </marker>
+          </defs>
+
+          <g>
+            <rect class="box" x="13" y="44" width="150" height="58" rx="6"></rect>
+            <text class="tb" x="27" y="70">Resolve device</text>
+            <text class="ts" x="27" y="89">topic or device code</text>
+
+            <rect class="box" x="177" y="44" width="150" height="58" rx="6"></rect>
+            <text class="tb" x="191" y="70">Decode payload</text>
+            <text class="ts" x="191" y="89">JSON · hex · binary</text>
+
+            <rect class="box" x="341" y="44" width="150" height="58" rx="6"></rect>
+            <text class="tb" x="355" y="70">Map field names</text>
+            <text class="ts" x="355" y="89">vendor → canonical</text>
+
+            <rect class="box" x="505" y="44" width="150" height="58" rx="6"></rect>
+            <text class="tb" x="519" y="70">Device-type filter</text>
+            <text class="ts" x="519" y="89">allow-list of params</text>
+
+            <rect class="box" x="669" y="44" width="150" height="58" rx="6"></rect>
+            <text class="tb" x="683" y="70">Validate</text>
+            <text class="ts" x="683" y="89">range · timestamp</text>
+
+            <rect class="box" x="833" y="44" width="150" height="58" rx="6"></rect>
+            <text class="tb" x="847" y="70">Check duplicate</text>
+            <text class="ts" x="847" y="89">sequence number</text>
+
+            <rect class="box" x="997" y="44" width="150" height="58" rx="6"></rect>
+            <text class="tb" x="1011" y="70">Persist</text>
+            <text class="ts" x="1011" y="89">then five effects</text>
+          </g>
+
+          <g class="flow" marker-end="url(#a2)">
+            <line x1="163" y1="73" x2="173" y2="73"></line>
+            <line x1="327" y1="73" x2="337" y2="73"></line>
+            <line x1="491" y1="73" x2="501" y2="73"></line>
+            <line x1="655" y1="73" x2="665" y2="73"></line>
+            <line x1="819" y1="73" x2="829" y2="73"></line>
+            <line x1="983" y1="73" x2="993" y2="73"></line>
+          </g>
+
+          <g class="flow-bad" marker-end="url(#a2)">
+            <line x1="88" y1="102" x2="88" y2="150"></line>
+            <line x1="252" y1="102" x2="252" y2="150"></line>
+            <line x1="416" y1="102" x2="416" y2="150"></line>
+            <line x1="744" y1="102" x2="744" y2="150"></line>
+            <line x1="908" y1="102" x2="908" y2="150"></line>
+          </g>
+          <g class="flow-drop" marker-end="url(#a2)">
+            <line x1="580" y1="102" x2="580" y2="150"></line>
+          </g>
+
+          <rect class="band" x="13" y="156" width="1134" height="46" rx="6"></rect>
+          <text class="ts" x="30" y="184" fill="var(--bad)">unknown device</text>
+          <text class="ts" x="194" y="184" fill="var(--bad)">decode failed</text>
+          <text class="ts" x="358" y="184" fill="var(--bad)">mapping failed</text>
+          <text class="ts" x="522" y="184">drops unknown keys</text>
+          <text class="ts" x="686" y="184" fill="var(--bad)">out of range</text>
+          <text class="ts" x="850" y="184" fill="var(--bad)">duplicate</text>
+          <text class="ts" x="1014" y="184" fill="var(--raw)">stored</text>
+
+          <text class="lbl" x="13" y="228">SOLID = REJECTED, REASON RECORDED ON THE RAW MESSAGE</text>
+          <text class="lbl" x="522" y="228">DASHED = FIELD DROPPED, READING KEPT</text>
+        </svg>
+      </div>
+      <figcaption>
+        A rejected message is still written down with its reason, so "why is this device missing?" is answerable from
+        the raw message log rather than guesswork.
+      </figcaption>
+    </figure>
+
+    <div class="note">
+      <p>
+        <strong>The filter is the quiet one.</strong> A device may send more fields than the Device Type declares;
+        anything not on the allow-list is dropped and the rest of the reading is kept. Parameters marked
+        <em>Derived</em> are excluded here too — a device can never overwrite a calculated value.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Calculations: two paths, one definition</h2>
+    <p class="sub">
+      Energy Consumption is derived from a cumulative Totalizer. The live path keeps a running baseline; the history
+      path recomputes from raw readings on request. Both apply the same rules, which is why they agree.
+    </p>
+
+    <figure>
+      <div class="scroll">
+        <svg class="diagram" viewBox="0 0 1160 400" role="img"
+             aria-label="The live path compares a new reading with the stored baseline and publishes a derived value. The history path reads raw totalizer readings from InfluxDB, differences them, drops resets, and sums per window. Raw telemetry is read only and never rewritten.">
+          <defs>
+            <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+            </marker>
+          </defs>
+
+          <text class="lbl" x="16" y="28" fill="var(--raw)">LIVE — AS EACH READING ARRIVES</text>
+
+          <rect class="box" x="16" y="44" width="180" height="58" rx="6"></rect>
+          <text class="tb" x="30" y="68">Accepted reading</text>
+          <text class="tm" x="30" y="88">totalizer = 100000.21</text>
+
+          <rect class="box" x="226" y="44" width="190" height="58" rx="6"></rect>
+          <text class="tb" x="240" y="68">Rules for this device</text>
+          <text class="ts" x="240" y="88">scope + how it applies</text>
+
+          <rect class="box" x="446" y="44" width="200" height="58" rx="6"></rect>
+          <text class="tb" x="460" y="68">Totalizer delta</text>
+          <text class="ts" x="460" y="88">current − last accepted</text>
+
+          <rect class="box" x="676" y="44" width="180" height="58" rx="6"></rect>
+          <text class="tb" x="690" y="68">Baseline row</text>
+          <text class="ts" x="690" y="88">compare-and-swap</text>
+
+          <rect class="box" x="886" y="44" width="258" height="58" rx="6"></rect>
+          <text class="tb" x="900" y="68">CalculationUpdated</text>
+          <text class="tm" x="900" y="88">energyConsumption = 0.01 kWh</text>
+
+          <g class="flow-derived" marker-end="url(#a3)">
+            <line x1="196" y1="73" x2="222" y2="73"></line>
+            <line x1="416" y1="73" x2="442" y2="73"></line>
+            <line x1="646" y1="73" x2="672" y2="73"></line>
+            <line x1="856" y1="73" x2="882" y2="73"></line>
+          </g>
+
+          <rect class="band" x="676" y="150" width="180" height="46" rx="6"></rect>
+          <text class="t" x="690" y="171">PostgreSQL</text>
+          <text class="ts" x="690" y="188">calculation state</text>
+          <g class="flow" marker-end="url(#a3)">
+            <line x1="766" y1="146" x2="766" y2="106"></line>
+          </g>
+
+          <rect class="band" x="226" y="150" width="190" height="46" rx="6"></rect>
+          <text class="t" x="240" y="171">InfluxDB</text>
+          <text class="ts" x="240" y="188">raw telemetry</text>
+
+          <line x1="546" y1="102" x2="546" y2="252" class="flow-drop"></line>
+          <text class="lbl" x="556" y="168">SAME RULES,</text>
+          <text class="lbl" x="556" y="184">ONE DEFINITION</text>
+
+          <text class="lbl" x="16" y="238" fill="var(--derived)">HISTORY — ON REQUEST, FROM RAW READINGS</text>
+
+          <rect class="box" x="16" y="254" width="180" height="58" rx="6"></rect>
+          <text class="tb" x="30" y="278">Results request</text>
+          <text class="ts" x="30" y="298">range + granularity</text>
+
+          <rect class="box" x="226" y="254" width="190" height="58" rx="6"></rect>
+          <text class="tb" x="240" y="278">Read totalizer</text>
+          <text class="ts" x="240" y="298">+ last reading before</text>
+
+          <rect class="box" x="446" y="254" width="200" height="58" rx="6"></rect>
+          <text class="tb" x="460" y="278">Difference pairs</text>
+          <text class="ts" x="460" y="298">consecutive readings</text>
+
+          <rect class="box" x="676" y="254" width="180" height="58" rx="6"></rect>
+          <text class="tb" x="690" y="278">Drop resets</text>
+          <text class="ts" x="690" y="298">negative · over max</text>
+
+          <rect class="box" x="886" y="254" width="258" height="58" rx="6"></rect>
+          <text class="tb" x="900" y="278">Sum per window</text>
+          <text class="ts" x="900" y="298">buckets + period total</text>
+
+          <g class="flow-derived" marker-end="url(#a3)">
+            <line x1="196" y1="283" x2="222" y2="283"></line>
+            <line x1="416" y1="283" x2="442" y2="283"></line>
+            <line x1="646" y1="283" x2="672" y2="283"></line>
+            <line x1="856" y1="283" x2="882" y2="283"></line>
+          </g>
+          <g class="flow-raw" marker-end="url(#a3)">
+            <line x1="321" y1="196" x2="321" y2="250"></line>
+          </g>
+          <text class="lbl" x="331" y="228">READ ONLY</text>
+
+          <text class="ts" x="16" y="348">Derived values are never written back into telemetry, so a rule added today still</text>
+          <text class="ts" x="16" y="366">covers last month, and deleting it leaves every measured reading untouched.</text>
+        </svg>
+      </div>
+      <figcaption>
+        The live path exists for speed, not truth — history is recomputed from the raw readings, so the two always
+        agree. The baseline row advances with a compare-and-swap, which is what stops a reading being counted twice.
+      </figcaption>
+    </figure>
+
+    <h3>What each reading does to the total</h3>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>Previous</th><th>New reading</th><th>Result</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">—</td><td class="num">100000.20</td><td>nothing</td><td>First reading only sets the baseline</td></tr>
+          <tr><td class="num">100000.20</td><td class="num">100000.21</td><td class="num">0.01 kWh</td><td>Normal increase</td></tr>
+          <tr><td class="num">99.10</td><td class="num">99.10</td><td class="num">0 kWh</td><td>Meter idle — a real zero, not a gap</td></tr>
+          <tr><td class="num">100000.21</td><td class="num">99.00</td><td>nothing</td><td>A drop is a reset or a replaced meter, never negative consumption</td></tr>
+          <tr><td class="num">100.20</td><td class="num">9000.00</td><td>nothing</td><td>Jump beyond the rule's limit — treated as a replacement</td></tr>
+          <tr><td class="num">99.05</td><td class="num">99.05</td><td>nothing</td><td>Duplicate or late arrival — the baseline doesn't move</td></tr>
+          <tr><td class="num">10.00</td><td class="num">10.90</td><td class="num">0.90 kWh</td><td>A reading went missing — the next delta still covers the gap</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note derived">
+      <p>
+        <strong>A totalizer is declared, not guessed.</strong> Eligibility comes from a parameter's Kind —
+        Instantaneous, Counter, Digital or Derived — never its unit. An <code>energy</code> parameter in kWh that isn't
+        marked Counter is rejected as a source, because kWh alone doesn't make a value cumulative.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Which devices a rule reaches</h2>
+    <p class="sub">
+      Scope says which devices a rule <em>can</em> apply to. How it applies decides whether it reaches them on its own
+      or waits to be picked in the device form.
+    </p>
+
+    <figure>
+      <div class="scroll">
+        <svg class="diagram" viewBox="0 0 1160 250" role="img"
+             aria-label="A rule's scope narrows candidate devices. An automatic rule then covers every matching device including future ones; a selected rule covers only devices ticked in the device form.">
+          <defs>
+            <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+            </marker>
+          </defs>
+
+          <rect class="box" x="16" y="52" width="270" height="140" rx="6"></rect>
+          <text class="tb" x="32" y="78">Calculation rule</text>
+          <text class="tm" x="32" y="102">site: any</text>
+          <text class="tm" x="32" y="122">device type: Energy Meter</text>
+          <text class="tm" x="32" y="142">device: any</text>
+          <line x1="32" y1="156" x2="270" y2="156" stroke="var(--line)"></line>
+          <text class="ts" x="32" y="177">scope = can apply</text>
+
+          <g class="flow" marker-end="url(#a4)">
+            <polyline points="286,100 330,100 330,78 366,78"></polyline>
+            <polyline points="286,144 330,144 330,166 366,166"></polyline>
+          </g>
+
+          <rect class="box" x="370" y="52" width="300" height="56" rx="6" stroke="var(--raw)"></rect>
+          <text class="tb" x="386" y="76" fill="var(--raw)">Automatically</text>
+          <text class="ts" x="386" y="95">every matching device, now and later</text>
+
+          <rect class="box" x="370" y="140" width="300" height="56" rx="6" stroke="var(--derived)"></rect>
+          <text class="tb" x="386" y="164" fill="var(--derived)">Selected on devices</text>
+          <text class="ts" x="386" y="183">only where ticked in the device form</text>
+
+          <g class="flow-raw" marker-end="url(#a4)"><line x1="670" y1="80" x2="706" y2="80"></line></g>
+          <g class="flow-derived" marker-end="url(#a4)"><line x1="670" y1="168" x2="706" y2="168"></line></g>
+
+          <rect class="band" x="710" y="46" width="434" height="68" rx="6"></rect>
+          <rect class="box" x="726" y="62" width="126" height="36" rx="5" stroke="var(--raw)"></rect>
+          <text class="t" x="740" y="85">Meter A</text>
+          <rect class="box" x="866" y="62" width="126" height="36" rx="5" stroke="var(--raw)"></rect>
+          <text class="t" x="880" y="85">Meter B</text>
+          <rect class="box" x="1006" y="62" width="122" height="36" rx="5" stroke="var(--raw)"></rect>
+          <text class="t" x="1020" y="85">Meter C</text>
+          <text class="lbl" x="1020" y="110" fill="var(--raw)">ADDED LATER</text>
+
+          <rect class="band" x="710" y="134" width="434" height="68" rx="6"></rect>
+          <rect class="box" x="726" y="150" width="126" height="36" rx="5"></rect>
+          <text class="ts" x="740" y="173">Meter A</text>
+          <rect class="box" x="866" y="150" width="126" height="36" rx="5" stroke="var(--derived)"></rect>
+          <text class="t" x="880" y="173" fill="var(--derived)">Meter B</text>
+          <rect class="box" x="1006" y="150" width="122" height="36" rx="5"></rect>
+          <text class="ts" x="1020" y="173">Meter C</text>
+          <text class="lbl" x="726" y="198">ONE ROW LINKS THE TICKED DEVICE TO THE RULE</text>
+        </svg>
+      </div>
+      <figcaption>
+        Both modes still require the scope to match and the source parameter to be a Counter. Taking a rule off a device
+        clears its baseline, so re-adding it starts a fresh accumulation period instead of billing the gap.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Realtime across two processes</h2>
+    <p class="sub">
+      The hub lives in the API, but readings arrive in ingestion. Events cross on the broker the platform already runs,
+      rather than adding a second piece of infrastructure.
+    </p>
+
+    <figure>
+      <div class="scroll">
+        <svg class="diagram" viewBox="0 0 1160 160" role="img"
+             aria-label="Ingestion publishes an event to an internal MQTT topic; the API subscribes, then broadcasts over SignalR to the tenant's group, which reaches the browser.">
+          <defs>
+            <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+            </marker>
+          </defs>
+
+          <rect class="box" x="16" y="44" width="196" height="58" rx="6"></rect>
+          <text class="tb" x="30" y="68">Bms.Ingestion</text>
+          <text class="ts" x="30" y="88">reading accepted</text>
+
+          <rect class="box" x="268" y="44" width="240" height="58" rx="6"></rect>
+          <text class="tb" x="282" y="68">Internal topic</text>
+          <text class="tm" x="282" y="88">bms/realtime/events</text>
+
+          <rect class="box" x="564" y="44" width="216" height="58" rx="6"></rect>
+          <text class="tb" x="578" y="68">Bms.Api bridge</text>
+          <text class="ts" x="578" y="88">re-broadcasts</text>
+
+          <rect class="box" x="836" y="44" width="150" height="58" rx="6"></rect>
+          <text class="tb" x="850" y="68">SignalR</text>
+          <text class="tm" x="850" y="88">tenant-{id}</text>
+
+          <rect class="box" x="1010" y="44" width="134" height="58" rx="6"></rect>
+          <text class="tb" x="1024" y="78">Browser</text>
+
+          <g class="flow" marker-end="url(#a5)">
+            <line x1="212" y1="73" x2="264" y2="73"></line>
+            <line x1="508" y1="73" x2="560" y2="73"></line>
+            <line x1="780" y1="73" x2="832" y2="73"></line>
+            <line x1="986" y1="73" x2="1006" y2="73"></line>
+          </g>
+          <text class="lbl" x="218" y="64">publish</text>
+          <text class="lbl" x="514" y="64">subscribe</text>
+          <text class="lbl" x="786" y="64">group</text>
+
+          <text class="ts" x="16" y="134">Every event is scoped to the tenant's group, so one customer's telemetry never reaches another's dashboard.</text>
+        </svg>
+      </div>
+      <figcaption>
+        Best-effort by design: a missed push costs a moment of freshness, and the stores remain the source of truth.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Where things live</h2>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Runs as</th><th>Listens on</th><th>Owns</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Bms.Ingestion</code></td><td>Background service</td><td class="num">MQTT 1883</td>
+            <td>Transports and the pipeline</td>
+          </tr>
+          <tr>
+            <td><code>Bms.Api</code></td><td>Web app</td><td class="num">HTTP 5000</td>
+            <td>REST, SignalR hub, realtime bridge, offline sweeps</td>
+          </tr>
+          <tr>
+            <td><code>Bms.Calculations</code></td><td>Library, in both</td><td>—</td>
+            <td>Rules, handlers, live and historical reads</td>
+          </tr>
+          <tr>
+            <td>PostgreSQL</td><td>Store</td><td class="num">5432</td>
+            <td>Tenants, devices, rules, baselines, raw message log</td>
+          </tr>
+          <tr>
+            <td>InfluxDB</td><td>Store</td><td class="num">8086</td>
+            <td>Measured readings only — never derived values</td>
+          </tr>
+          <tr>
+            <td>Mosquitto</td><td>Broker</td><td class="num">1883</td>
+            <td>Device topics and the internal event topic</td>
+          </tr>
+          <tr>
+            <td>Dashboard</td><td>Next.js app</td><td class="num">3000</td>
+            <td>Monitoring, Calculations, administration</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="page">
+      Tenant isolation runs through every layer: broker credentials are scoped per tenant topic namespace, API calls are
+      checked against the caller's tenant, and realtime events are delivered to that tenant's group alone.
+    </footer>
+  </section>
+</div>
+
+</body></html>

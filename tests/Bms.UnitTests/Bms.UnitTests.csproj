@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <!-- Npgsql 10.0.3 pulls EF.Relational 10.0.4 while EFCore 10.0.11 pulls
+         10.0.11; pinning resolves MSB3277, as Bms.IntegrationTests already does. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\backend\Bms.Domain\Bms.Domain.csproj" />
+    <ProjectReference Include="..\..\src\backend\Bms.Application\Bms.Application.csproj" />
+    <ProjectReference Include="..\..\src\backend\Bms.Infrastructure\Bms.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\backend\Bms.Protocols\Bms.Protocols.csproj" />
+    <ProjectReference Include="..\..\src\backend\Bms.Alerting\Bms.Alerting.csproj" />
+    <ProjectReference Include="..\..\src\backend\Bms.Calculations\Bms.Calculations.csproj" />
+    <ProjectReference Include="..\..\src\backend\Bms.Connectors.Core\Bms.Connectors.Core.csproj" />
+    <ProjectReference Include="..\..\src\backend\Bms.Connectors\Bms.Connectors.csproj" />
+    <ProjectReference Include="..\..\src\backend\Bms.DeviceManagement\Bms.DeviceManagement.csproj" />
+  </ItemGroup>
+
+</Project>

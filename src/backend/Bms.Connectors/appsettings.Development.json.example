@@ -1,0 +1,8 @@
+{
+  "ConnectorService": {
+    "ApiKey": "dev-only-connector-service-key-change-me",
+    "Mqtt": {
+      "Password": "change-me"
+    }
+  }
+}

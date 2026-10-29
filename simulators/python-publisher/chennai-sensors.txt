@@ -1,0 +1,71 @@
+Chennai factory — health & safety sensors (whirlpool / chennai-factory)
+======================================================================
+Run each command in its own terminal, from: simulators/python-publisher/
+Stop any of them with Ctrl+C.
+
+FIRST, in each terminal, export the whirlpool tenant's MQTT password.
+It is deliberately NOT written in this file — this file is in git.
+Get it from the dashboard under MQTT Credentials, then:
+
+    export WHIRLPOOL_MQTT_PASSWORD='paste-it-here'
+
+All three devices belong to the whirlpool tenant, so one password covers
+all of them.
+
+
+1) device-014  —  Vibration Sensor
+   fields: temperature, humidity, vibration
+
+.venv/bin/python3 publish_sample.py --device-id device-014 --interval 5 --mqtt-password "$WHIRLPOOL_MQTT_PASSWORD"
+
+
+2) device-015  —  WBGT / heat-stress meter
+   fields: wbgt, dryBulb, wetBulb, globeTemp, humidity
+
+.venv/bin/python3 publish_sample.py --device-id device-015 --interval 5 --mqtt-password "$WHIRLPOOL_MQTT_PASSWORD"
+
+
+3) device-016  —  Noise meter
+   fields: noiseLevel (LAeq), noisePeak (LCpeak)
+
+.venv/bin/python3 publish_sample.py --device-id device-016 --interval 5 --mqtt-password "$WHIRLPOOL_MQTT_PASSWORD"
+
+
+All three at once, in the background
+------------------------------------
+for d in 014 015 016; do
+  .venv/bin/python3 publish_sample.py --device-id device-$d --interval 5 \
+    --mqtt-password "$WHIRLPOOL_MQTT_PASSWORD" > /tmp/device-$d.log 2>&1 &
+done
+
+Watch them:      tail -f /tmp/device-01*.log
+Stop them all:   pkill -f publish_sample.py
+
+
+Notes
+-----
+* No --field is needed. Each device starts from sensible defaults and then
+  drifts like a real sensor, with a random anomaly every 15-30 minutes so
+  your alert rules actually get exercised.
+
+      device-014   temperature 32 C, humidity 60 %, vibration 2.8 mm/s
+      device-015   wbgt 29.5 C, dryBulb 34 C, wetBulb 26.5 C, globeTemp 39 C, humidity 65 %
+      device-016   noiseLevel 82 dB, noisePeak 104 dB
+
+* To start from a specific value instead, add --field, e.g.
+      --field wbgt=33 --field globeTemp=44
+      --field noiseLevel=95
+      --field vibration=8
+
+* These are three separate devices with three different device types.
+  Noise or WBGT values published to device-014 would be discarded, because
+  they are not parameters of the Vibration Sensor type.
+
+* A heartbeat is sent every 30 s alongside the telemetry (--heartbeat 0
+  turns it off). That is what keeps the device Online between readings.
+
+* First time only, if paho-mqtt is not installed yet:
+      python3 -m venv .venv && .venv/bin/pip install paho-mqtt
+
+* Never paste a real password into this file. If one ever lands in a
+  commit, rotating the tenant's MQTT credential is the only real fix.

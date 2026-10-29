@@ -1,0 +1,34 @@
+# Overlay for the isolated reliability test stack — see
+# tests/reliability/run-reliability-tests.sh. Applied on top of the real
+# docker-compose.yml so the services, restart policies, and durability
+# settings under test are the production ones; only ports, credentials,
+# broker auth, and test-speed timings differ.
+name: bms-reliability
+
+services:
+  mosquitto:
+    ports: !override
+      - "51883:1883"
+    volumes: !override
+      - ./tests/reliability/mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro
+      - ./tests/reliability/.generated/passwd:/mosquitto/config/passwd:ro
+      - ./infrastructure/mosquitto/acl:/mosquitto/config/acl:ro
+      - ./infrastructure/mosquitto/docker-entrypoint.sh:/docker-entrypoint-bms.sh:ro
+      - mosquitto-data:/mosquitto/data
+
+  ingestion:
+    environment:
+      # Faster than production so a run takes minutes, not hours.
+      TimeSeriesBackfill__IntervalSeconds: "5"
+      TimeSeriesBackfill__MinAgeSeconds: "5"
+      TimeSeriesBackfill__MaxBackoffSeconds: "10"
+      IngestionReliability__TransientRetryMaxDelaySeconds: "5"
+
+  api:
+    environment:
+      DeviceLifecycle__SweepIntervalSeconds: "5"
+      IngestionHealth__StaleAfterSeconds: "30"
+      IngestionHealth__RecoveryGraceSeconds: "15"
+
+  web:
+    profiles: ["not-under-test"]

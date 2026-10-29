@@ -1,0 +1,14 @@
+# Host build output must never enter the image: obj/project.assets.json
+# points at the host's NuGet cache, which breaks `dotnet publish --no-restore`
+# inside the container.
+**/bin/
+**/obj/
+**/node_modules/
+**/.next/
+.git/
+.env
+.env.*
+!.env.example
+tests/reliability/.generated/
+infrastructure/mosquitto/passwd*
+infrastructure/mosquitto/certs/*.key

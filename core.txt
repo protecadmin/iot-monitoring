@@ -1,0 +1,2679 @@
+You are a Senior Industrial IoT Architect, Senior .NET Engineer,
+Senior Next.js Engineer, and IoT Protocol Engineer.
+
+I want to build a complete production-like Industrial IoT Monitoring
+Platform from scratch as a serious software engineering learning project.
+
+The goal is to prepare me for a Software Engineer / IoT Software Engineer
+role where I may work with devices, telemetry, MQTT, protocols,
+backend services, databases, real-time systems, dashboards,
+device management, and production troubleshooting.
+
+This is NOT a simple CRUD application.
+
+Build the project as a realistic but manageable IoT platform.
+
+IMPORTANT:
+Do NOT over-engineer the system with unnecessary Kafka, Kubernetes,
+microservices, Redis, etc. unless a real requirement demonstrates why
+they are needed.
+
+The architecture must be understandable, maintainable, testable,
+and production-oriented.
+
+
+============================================================
+1. TECHNOLOGY STACK
+============================================================
+
+Frontend:
+
+- Next.js
+- TypeScript
+- App Router
+
+Backend:
+
+- ASP.NET Core
+- C#
+- REST APIs
+- SignalR
+
+Databases:
+
+- PostgreSQL
+- InfluxDB
+
+ORM:
+
+- Entity Framework Core
+
+IoT:
+
+- MQTT
+- MQTTS
+- TCP/IP
+- HTTP/HTTPS
+- BACnet / BACnet-IP
+
+MQTT Broker:
+
+- Mosquitto
+
+Testing:
+
+- xUnit
+
+Infrastructure:
+
+- Docker
+- Docker Compose
+
+
+============================================================
+2. CORE ARCHITECTURAL PRINCIPLE
+============================================================
+
+The most important rule is:
+
+TRANSPORT ≠ PROTOCOL ≠ PAYLOAD FORMAT ≠ PAYLOAD MAPPING
+
+Do not mix these concepts.
+
+
+Transport examples:
+
+- MQTT connection
+- TCP connection
+- HTTP connection
+
+
+Protocol examples:
+
+- MQTT
+- Proprietary TCP protocol
+- BACnet
+- HTTP
+- Vendor-specific protocol
+
+
+Payload format examples:
+
+- JSON
+- HEX
+- Binary
+- Proprietary
+
+
+Payload mapping:
+
+Different devices and vendors may send completely different
+JSON structures even when they use the same MQTT topic.
+
+
+All external device data must eventually become:
+
+NormalizedTelemetry
+
+
+The rest of the application must work with the normalized internal model
+instead of understanding every vendor's format.
+
+
+============================================================
+3. HIGH-LEVEL ARCHITECTURE
+============================================================
+
+
+                         IoT DEVICES
+                              |
+              +---------------+---------------+
+              |               |               |
+             MQTT           TCP/IP          HTTP
+              |               |               |
+              +---------------+---------------+
+                              |
+                           BACnet
+                              |
+                              v
+                 TRANSPORT / PROTOCOL LAYER
+                              |
+                              v
+                       RAW DEVICE MESSAGE
+                              |
+                              v
+                     DEVICE IDENTIFICATION
+                              |
+                              v
+                    PAYLOAD CONFIGURATION
+                              |
+                              v
+                    FORMAT / DECODER ROUTER
+                              |
+               +--------------+--------------+
+               |              |              |
+              JSON           HEX          BINARY
+               |              |              |
+               +--------------+--------------+
+                              |
+                              v
+                       PAYLOAD MAPPING
+                              |
+                              v
+                   NORMALIZED TELEMETRY
+                              |
+                              v
+                         VALIDATION
+                              |
+                              v
+                       DEDUPLICATION
+                              |
+                              v
+                    BUSINESS PROCESSING
+                              |
+                 +------------+------------+
+                 |                         |
+                 v                         v
+            PostgreSQL                  InfluxDB
+            Domain Data                Time-Series
+                 |                         |
+                 +------------+------------+
+                              |
+                              v
+                         ASP.NET CORE
+                              |
+                    +---------+---------+
+                    |                   |
+                    v                   v
+                  REST                SignalR
+                    |                   |
+                    +---------+---------+
+                              |
+                              v
+                           Next.js
+                              |
+                              v
+                         Dashboard
+
+
+============================================================
+4. BUSINESS HIERARCHY
+============================================================
+
+Use:
+
+Tenant
+   |
+   v
+Site
+   |
+   v
+Device
+
+
+Do NOT introduce Project unless a genuine business requirement
+requires it.
+
+Tenant:
+
+Represents a customer/organization.
+
+Site:
+
+Represents a physical location.
+
+Device:
+
+Represents an individual IoT device.
+
+
+Example:
+
+Tenant:
+tenant-001
+
+Sites:
+site-001
+site-002
+
+Devices:
+device-001
+device-002
+device-003
+
+
+============================================================
+5. MQTT TOPIC DESIGN
+============================================================
+
+Use:
+
+iot/{tenantId}/{siteId}/{deviceId}/{messageType}
+
+
+Examples:
+
+iot/tenant-001/site-001/device-001/telemetry
+
+iot/tenant-001/site-001/device-001/heartbeat
+
+iot/tenant-001/site-001/device-001/status
+
+iot/tenant-001/site-001/device-001/events
+
+iot/tenant-001/site-001/device-001/commands
+
+iot/tenant-001/site-001/device-001/commands/ack
+
+iot/tenant-001/site-001/device-001/config
+
+iot/tenant-001/site-001/device-001/firmware
+
+
+IMPORTANT:
+
+Do NOT include payload format in the topic.
+
+Do NOT create:
+
+iot/json/...
+iot/binary/...
+iot/hex/...
+
+
+The topic identifies:
+
+Tenant
+Site
+Device
+Message Type
+
+
+The backend determines:
+
+Transport
+Protocol
+Payload Format
+Payload Mapping
+
+
+============================================================
+6. MQTT WILDCARDS
+============================================================
+
+Demonstrate:
+
+One device:
+
+iot/tenant-001/site-001/device-001/#
+
+
+One site's telemetry:
+
+iot/tenant-001/site-001/+/telemetry
+
+
+One tenant's telemetry:
+
+iot/tenant-001/+/+/telemetry
+
+
+All telemetry:
+
+iot/+/+/+/telemetry
+
+
+Explain:
+
++ = exactly one topic level
+
+# = multiple topic levels
+
+
+============================================================
+7. MQTT MESSAGE TYPES
+============================================================
+
+Support:
+
+telemetry
+heartbeat
+status
+events
+commands
+commands/ack
+config
+firmware
+
+
+Direction:
+
+telemetry:
+Device -> Backend
+
+heartbeat:
+Device -> Backend
+
+status:
+Device -> Backend
+
+events:
+Device -> Backend
+
+commands:
+Backend -> Device
+
+commands/ack:
+Device -> Backend
+
+config:
+Backend -> Device
+
+firmware:
+Backend -> Device
+
+
+============================================================
+8. MQTT RELIABILITY
+============================================================
+
+Implement and document:
+
+- QoS 0
+- QoS 1
+- QoS 2
+- Retained messages
+- Last Will and Testament
+- Keep Alive
+- Reconnect
+- Connection monitoring
+- Graceful shutdown
+- MQTT authentication
+- MQTTS/TLS
+- Duplicate handling
+
+
+Initial recommendation:
+
+Telemetry -> QoS 1
+Heartbeat -> QoS 1
+Commands -> QoS 1
+Critical events -> QoS 1 or QoS 2 depending on requirement
+
+
+Do not blindly use QoS 2 everywhere.
+
+Do not use retained messages for high-volume telemetry without
+a real reason.
+
+
+============================================================
+9. TRANSPORT ARCHITECTURE
+============================================================
+
+Create:
+
+ITransportAdapter
+
+
+Implement:
+
+MqttTransportAdapter
+TcpTransportAdapter
+HttpTransportAdapter
+
+
+Transport responsibilities:
+
+- Connect
+- Disconnect
+- Reconnect
+- Receive
+- Send
+- Timeout
+- Cancellation
+- Connection lifecycle
+
+
+Transport adapters must NOT contain:
+
+- Business logic
+- Alert logic
+- Database logic
+- Telemetry business rules
+
+
+============================================================
+10. PROTOCOL ARCHITECTURE
+============================================================
+
+Create:
+
+IProtocolHandler
+
+
+Potential implementations:
+
+MqttProtocolHandler
+TcpProtocolHandler
+BacnetProtocolHandler
+HttpProtocolHandler
+ProprietaryProtocolHandler
+
+
+BACnet must have a proper protocol boundary.
+
+Do NOT treat BACnet as simply JSON over TCP.
+
+
+The domain layer must not depend directly on:
+
+MQTT
+TCP
+BACnet
+HTTP
+
+
+============================================================
+11. RAW MESSAGE
+============================================================
+
+Create:
+
+RawDeviceMessage
+
+
+Fields:
+
+MessageId
+TenantId
+SiteId
+DeviceId
+Transport
+Protocol
+Topic
+Endpoint
+PayloadFormat
+RawPayload
+ReceivedAt
+DeviceTimestamp
+CorrelationId
+
+
+IMPORTANT:
+
+Always preserve the original raw payload.
+
+Do not discard it after decoding.
+
+
+Raw messages are required for:
+
+- Debugging
+- Troubleshooting
+- Replay
+- Vendor support
+- Auditing
+- Decoder changes
+- Failed message analysis
+
+
+============================================================
+12. DEVICE REGISTRY
+============================================================
+
+Device should contain:
+
+DeviceId
+TenantId
+SiteId
+DeviceTypeId
+Name
+SerialNumber
+Transport
+Protocol
+PayloadFormat
+PayloadMappingId
+FirmwareVersion
+HardwareVersion
+Status
+LastSeenAt
+LastTelemetryAt
+LastHeartbeatAt
+
+
+Example:
+
+Device-001:
+
+Transport = MQTT
+Protocol = MQTT
+PayloadFormat = JSON
+PayloadMapping = VendorA-JSON-v1
+
+
+Device-002:
+
+Transport = TCP
+Protocol = ProprietaryTCP
+PayloadFormat = Binary
+PayloadMapping = VendorB-Binary-v1
+
+
+Device-003:
+
+Transport = BACnet/IP
+Protocol = BACnet
+PayloadFormat = BACnet
+
+
+Device-004:
+
+Transport = HTTP
+Protocol = HTTP
+PayloadFormat = JSON
+PayloadMapping = VendorC-JSON-v1
+
+
+============================================================
+13. MULTIPLE JSON STRUCTURES
+============================================================
+
+THIS IS A CRITICAL REQUIREMENT.
+
+
+Different devices can send different JSON structures through the
+same MQTT telemetry topic.
+
+
+Example topic:
+
+iot/tenant-001/site-001/device-001/telemetry
+
+
+Vendor A:
+
+{
+  "deviceId": "D001",
+  "temp": 31.5,
+  "hum": 68
+}
+
+
+Vendor B:
+
+{
+  "device": "D001",
+  "temperature": 31.5,
+  "humidity": 68
+}
+
+
+Vendor C:
+
+{
+  "id": "D001",
+  "data": {
+    "temperature": 31.5,
+    "humidity": 68
+  }
+}
+
+
+Vendor D:
+
+{
+  "device_id": "D001",
+  "temperature_c": 31.5,
+  "humidity_percent": 68
+}
+
+
+All must become:
+
+NormalizedTelemetry
+
+
+DO NOT solve this by creating different MQTT topics.
+
+
+============================================================
+14. PAYLOAD DECODER
+============================================================
+
+Create:
+
+IPayloadDecoder
+
+
+Implement:
+
+JsonPayloadDecoder
+HexPayloadDecoder
+BinaryPayloadDecoder
+ProprietaryPayloadDecoder
+
+
+Flow:
+
+Raw Payload
+     |
+     v
+Decoder
+     |
+     v
+Decoded Data
+     |
+     v
+Payload Mapper
+     |
+     v
+NormalizedTelemetry
+
+
+============================================================
+15. PAYLOAD MAPPING
+============================================================
+
+Create:
+
+IPayloadMapper
+
+
+Support vendor-specific field mappings.
+
+
+Example:
+
+External Field          Internal Field
+
+temp                    temperature
+temperature             temperature
+temperature_c           temperature
+
+hum                     humidity
+humidity                 humidity
+humidity_percent         humidity
+
+
+For complex vendor formats, support vendor-specific mapping logic.
+
+
+IMPORTANT:
+
+Do NOT create a new class for every tiny field-name difference.
+
+Prefer configuration-driven mapping when the transformation is simple.
+
+
+Example:
+
+Vendor A:
+
+temp -> temperature
+
+Vendor B:
+
+temperature -> temperature
+
+
+Both become:
+
+NormalizedTelemetry.temperature
+
+
+============================================================
+16. PAYLOAD MAPPING VERSIONING
+============================================================
+
+Support:
+
+PayloadMapping
+PayloadMappingVersion
+
+
+Example:
+
+VendorA-JSON-v1
+VendorA-JSON-v2
+
+
+A vendor may change:
+
+{
+  "temp": 31.5
+}
+
+
+to:
+
+{
+  "temperatureValue": 31.5
+}
+
+
+The system must support both versions.
+
+
+Do not destroy older mappings.
+
+
+============================================================
+17. NORMALIZED TELEMETRY
+============================================================
+
+Create:
+
+NormalizedTelemetry
+
+
+Example:
+
+{
+  "tenantId": "tenant-001",
+  "siteId": "site-001",
+  "deviceId": "device-001",
+  "timestamp": "2026-09-01T10:30:00Z",
+  "temperature": 31.5,
+  "humidity": 68.2,
+  "pressure": 1012.4,
+  "vibration": 0.4,
+  "energy": 12.5,
+  "battery": 87,
+  "signalStrength": -62,
+  "latitude": 13.0827,
+  "longitude": 80.2707
+}
+
+
+Every external protocol and payload format must eventually produce
+this internal representation.
+
+
+============================================================
+18. COMPLETE TELEMETRY PIPELINE
+============================================================
+
+Every message must follow:
+
+Receive
+   ↓
+Identify Tenant
+   ↓
+Identify Site
+   ↓
+Identify Device
+   ↓
+Identify Transport
+   ↓
+Identify Protocol
+   ↓
+Identify Payload Format
+   ↓
+Load Payload Mapping
+   ↓
+Decode
+   ↓
+Map
+   ↓
+Normalize
+   ↓
+Validate
+   ↓
+Deduplicate
+   ↓
+Business Processing
+   ↓
+Persist
+   ↓
+Alert Evaluation
+   ↓
+Real-Time Event
+
+
+A malformed message must NEVER crash the entire ingestion service.
+
+
+============================================================
+19. TELEMETRY VALIDATION
+============================================================
+
+Validate:
+
+- Tenant
+- Site
+- Device
+- Device ownership
+- Timestamp
+- Required fields
+- Value ranges
+- Units
+- Sequence number
+- Duplicate messages
+- Stale messages
+- Future timestamps
+
+
+Invalid telemetry should be rejected safely and logged.
+
+
+============================================================
+20. DOMAIN MODEL
+============================================================
+
+Create:
+
+Tenant
+Site
+Device
+DeviceType
+Gateway
+Telemetry
+TelemetryRawMessage
+DeviceStatus
+DeviceHeartbeat
+PayloadMapping
+PayloadMappingVersion
+AlertRule
+Alert
+Notification
+DeviceCommand
+DeviceConfiguration
+Firmware
+FirmwareDeployment
+User
+Role
+AuditLog
+
+
+Relationships:
+
+Tenant
+  |
+  +--- Sites
+         |
+         +--- Devices
+                |
+                +--- Telemetry
+                +--- Alerts
+                +--- Commands
+                +--- Configuration
+                +--- Firmware
+                +--- Payload Mapping
+
+
+============================================================
+21. DEVICE TYPES
+============================================================
+
+Create realistic device types:
+
+Temperature Sensor
+Humidity Sensor
+Pressure Sensor
+Vibration Sensor
+Energy Meter
+Air Quality Sensor
+Water Level Sensor
+Environmental Station
+Industrial Gateway
+
+
+============================================================
+22. DEVICE LIFECYCLE
+============================================================
+
+Support:
+
+REGISTERED
+PROVISIONED
+ONLINE
+OFFLINE
+WARNING
+ERROR
+MAINTENANCE
+DECOMMISSIONED
+
+
+Heartbeat logic:
+
+No heartbeat within configured threshold:
+
+ONLINE -> OFFLINE
+
+
+Heartbeat resumes:
+
+OFFLINE -> ONLINE
+
+
+Track:
+
+LastSeenAt
+LastTelemetryAt
+LastHeartbeatAt
+
+
+============================================================
+23. DEVICE SIMULATOR
+============================================================
+
+Create a .NET IoT Device Simulator.
+
+Support:
+
+1 device
+10 devices
+100 devices
+
+
+Example:
+
+dotnet run -- --device-id=device-001 --interval=5
+
+
+And:
+
+dotnet run -- --count=100
+
+
+Simulator must support:
+
+MQTT
+TCP
+HTTP
+
+
+Simulate:
+
+MQTT + JSON
+MQTT + Binary
+TCP + JSON
+TCP + Binary
+TCP + Proprietary
+HTTP + JSON
+BACnet mapping
+
+
+The simulator must generate different vendor JSON structures.
+
+
+Example:
+
+Vendor A JSON
+Vendor B JSON
+Vendor C JSON
+
+
+Also simulate:
+
+- Telemetry
+- Heartbeat
+- Status
+- Events
+- Commands
+- ACK
+- Configuration
+- Firmware update
+- Offline
+- Reconnect
+- Invalid JSON
+- Invalid values
+- Duplicate messages
+- Delayed messages
+- Out-of-order messages
+
+
+Telemetry should be realistic rather than purely random.
+
+
+============================================================
+24. TCP/IP INGESTION
+============================================================
+
+Create TCP ingestion.
+
+Support:
+
+- TCP server
+- Multiple connections
+- Connection lifecycle
+- Reconnect
+- Timeout
+- Cancellation
+- Partial packets
+- Message framing
+- JSON payload
+- Binary payload
+- Proprietary payload
+
+
+CRITICAL:
+
+TCP is a byte stream.
+
+Do NOT assume:
+
+one TCP Receive = one complete message.
+
+
+Implement realistic framing.
+
+Example:
+
+Length-prefixed frame
+
+or:
+
+Start/end delimiter
+
+
+Explain why framing is necessary.
+
+
+============================================================
+25. BACNET
+============================================================
+
+Create a BACnet integration boundary.
+
+Support conceptual:
+
+BACnet Device
+    |
+    +--- Analog Input
+    +--- Analog Output
+    +--- Binary Input
+    +--- Binary Output
+    +--- Analog Value
+
+
+Map BACnet values into:
+
+NormalizedTelemetry
+
+
+Example:
+
+BACnet Device:
+1001
+
+Object:
+Analog Input
+
+Instance:
+1
+
+Present Value:
+31.5
+
+
+Normalize:
+
+temperature = 31.5
+
+
+Do not treat BACnet as JSON.
+
+
+============================================================
+26. HTTP INGESTION
+============================================================
+
+Support:
+
+POST /api/ingestion/http/{deviceId}
+
+
+Accept vendor-specific JSON.
+
+
+Flow:
+
+HTTP
+ ↓
+Raw Message
+ ↓
+Decoder
+ ↓
+Payload Mapper
+ ↓
+NormalizedTelemetry
+ ↓
+Validation
+ ↓
+Processing
+
+
+============================================================
+27. POSTGRESQL
+============================================================
+
+Use PostgreSQL for:
+
+- Tenant
+- Site
+- Device
+- DeviceType
+- User
+- Role
+- PayloadMapping
+- PayloadMappingVersion
+- AlertRule
+- Alert
+- DeviceCommand
+- DeviceConfiguration
+- Firmware
+- FirmwareDeployment
+- AuditLog
+- Raw message metadata
+
+
+Use:
+
+Entity Framework Core
+
+
+Implement:
+
+- Primary keys
+- Foreign keys
+- Constraints
+- Indexes
+- Migrations
+- Seed data
+- Transactions
+
+
+PostgreSQL is the source of truth for application/domain data.
+
+
+============================================================
+28. INFLUXDB
+============================================================
+
+Use InfluxDB for high-volume time-series telemetry.
+
+
+Telemetry examples:
+
+temperature
+humidity
+pressure
+vibration
+energy
+battery
+signal strength
+
+
+Conceptual measurement:
+
+telemetry
+
+
+Tags:
+
+tenantId
+siteId
+deviceId
+
+
+Fields:
+
+temperature
+humidity
+pressure
+vibration
+energy
+battery
+
+
+Store appropriate timestamps.
+
+
+Explain:
+
+Event Time
+Ingestion Time
+
+
+Use InfluxDB-backed APIs for historical telemetry queries.
+
+
+============================================================
+29. DATABASE RESPONSIBILITIES
+============================================================
+
+PostgreSQL:
+
+Application/domain/transactional data.
+
+
+InfluxDB:
+
+Time-series telemetry.
+
+
+Architecture:
+
+.NET Processing
+      |
+      +-----------> PostgreSQL
+      |             Domain Data
+      |
+      +-----------> InfluxDB
+                    Telemetry
+
+
+Do not duplicate all data unnecessarily.
+
+
+============================================================
+30. RAW MESSAGE RETENTION
+============================================================
+
+Preserve raw messages for troubleshooting.
+
+Support configurable retention.
+
+
+Raw message can be used for:
+
+- Debugging
+- Replay
+- Vendor troubleshooting
+- Decoder changes
+- Auditing
+
+
+============================================================
+31. ALERT ENGINE
+============================================================
+
+Create configurable alert rules.
+
+
+Examples:
+
+Temperature > 50
+Humidity > 90
+Pressure < 900
+Battery < 20
+Vibration > threshold
+Device offline > 5 minutes
+No telemetry > 2 minutes
+
+
+Severity:
+
+INFO
+WARNING
+CRITICAL
+
+
+Lifecycle:
+
+OPEN
+ACKNOWLEDGED
+RESOLVED
+
+
+Implement:
+
+- Cooldown
+- Debounce
+- Duplicate prevention
+- Flood protection
+
+
+============================================================
+32. REAL-TIME
+============================================================
+
+Use:
+
+ASP.NET Core SignalR
+
+
+Flow:
+
+Device
+ ↓
+MQTT/TCP/BACnet/HTTP
+ ↓
+Ingestion
+ ↓
+Processing
+ ↓
+Database
+ ↓
+SignalR
+ ↓
+Next.js
+
+
+Dashboard must update without a page refresh.
+
+
+============================================================
+33. NEXT.JS APPLICATION
+============================================================
+
+Use:
+
+Next.js
+TypeScript
+App Router
+
+
+Do NOT use Vite React.
+
+
+Structure:
+
+web/iot-dashboard/
+
+app/
+
+  login/
+  dashboard/
+  tenants/
+  sites/
+  devices/
+  alerts/
+  commands/
+  firmware/
+  reports/
+  settings/
+
+
+components/
+
+  dashboard/
+  devices/
+  telemetry/
+  alerts/
+  charts/
+  maps/
+  tables/
+  forms/
+  layout/
+
+
+lib/
+
+  api/
+  auth/
+  websocket/
+  utils/
+
+
+hooks/
+types/
+services/
+
+
+Business logic remains in ASP.NET Core.
+
+Next.js is responsible for:
+
+- UI
+- API consumption
+- User interactions
+- Real-time display
+- Client-side presentation state
+
+
+============================================================
+34. DASHBOARD
+============================================================
+
+Show:
+
+Total Tenants
+Total Sites
+Total Devices
+Online Devices
+Offline Devices
+Active Alerts
+Critical Alerts
+
+
+Charts:
+
+Temperature
+Humidity
+Pressure
+Vibration
+Energy
+Battery
+
+
+Time ranges:
+
+Live
+1 hour
+6 hours
+24 hours
+7 days
+
+
+Use InfluxDB-backed API queries.
+
+
+============================================================
+35. DEVICE DETAILS
+============================================================
+
+Route:
+
+/devices/[deviceId]
+
+
+Tabs:
+
+Overview
+Live
+History
+Alerts
+Commands
+Configuration
+Firmware
+Raw Messages
+Logs
+
+
+Show:
+
+- Device information
+- Transport
+- Protocol
+- Payload format
+- Payload mapping
+- Mapping version
+- Current status
+- Last communication
+- Current telemetry
+- Historical telemetry
+- Alerts
+- Commands
+- Firmware
+- Raw payload
+- Communication logs
+
+
+============================================================
+36. MAP
+============================================================
+
+Show device locations.
+
+Fields:
+
+Latitude
+Longitude
+
+
+Statuses:
+
+ONLINE
+OFFLINE
+WARNING
+CRITICAL
+
+
+Filters:
+
+Tenant
+Site
+Device Type
+Status
+
+
+============================================================
+37. COMMAND SYSTEM
+============================================================
+
+Commands:
+
+Restart
+Request Telemetry
+Change Reporting Interval
+Synchronize Time
+Update Configuration
+
+
+Flow:
+
+Next.js
+ ↓
+ASP.NET Core API
+ ↓
+Command Service
+ ↓
+Transport / Protocol Adapter
+ ↓
+Device
+ ↓
+ACK
+ ↓
+Backend
+ ↓
+SignalR
+ ↓
+Next.js
+
+
+Statuses:
+
+PENDING
+SENT
+ACKNOWLEDGED
+FAILED
+TIMEOUT
+
+
+Track:
+
+CommandId
+DeviceId
+CreatedAt
+SentAt
+CompletedAt
+Status
+Error
+
+
+============================================================
+38. REMOTE CONFIGURATION
+============================================================
+
+Example:
+
+{
+  "reportingInterval": 5,
+  "temperatureThreshold": 50,
+  "heartbeatInterval": 30
+}
+
+
+Support:
+
+- Configuration version
+- Configuration history
+- Send configuration
+- Device ACK
+- Rollback where appropriate
+
+
+============================================================
+39. FOTA / OTA
+============================================================
+
+FOTA is a SOFTWARE-SIDE SIMULATION.
+
+Do NOT implement:
+
+- Embedded firmware
+- Bootloader
+- MCU flash programming
+- Physical hardware flashing
+
+
+The purpose is to learn device-management software.
+
+
+Implement:
+
+Firmware
+
+Fields:
+
+FirmwareId
+Version
+DeviceType
+File
+Checksum
+ReleaseNotes
+ReleaseDate
+
+
+Deployment:
+
+Select firmware
+      ↓
+Select target devices
+      ↓
+Create deployment
+      ↓
+Send update command
+      ↓
+Device receives command
+      ↓
+Device downloads firmware
+      ↓
+Checksum verification
+      ↓
+Install simulation
+      ↓
+Device restarts
+      ↓
+Device reconnects
+      ↓
+Device reports new firmware version
+      ↓
+Backend verifies version
+      ↓
+SUCCESS
+
+
+Possible failure scenarios:
+
+Download failure
+Checksum failure
+Device offline
+Timeout
+Installation failure
+Device does not reconnect
+
+
+Support:
+
+Retry
+Timeout
+Failure status
+Deployment tracking
+
+
+For multiple devices:
+
+Firmware v1.1
+      |
+      +---- device-001 -> SUCCESS
+      +---- device-002 -> SUCCESS
+      +---- device-003 -> FAILED
+      +---- device-004 -> OFFLINE
+
+
+Track each device deployment independently.
+
+
+Statuses:
+
+PENDING
+DOWNLOADING
+VERIFYING
+INSTALLING
+REBOOTING
+SUCCESS
+FAILED
+TIMEOUT
+WAITING_FOR_DEVICE
+
+
+The simulator should pretend to perform these operations.
+
+Do not spend excessive development effort on FOTA.
+
+
+============================================================
+40. AUTHENTICATION
+============================================================
+
+Implement:
+
+Login
+Logout
+JWT
+Refresh token where appropriate
+Role-based authorization
+
+
+Roles:
+
+SuperAdmin
+Admin
+Engineer
+Viewer
+Customer
+
+
+Permissions:
+
+Tenant.View
+Tenant.Manage
+Site.View
+Site.Manage
+Device.View
+Device.Manage
+Telemetry.View
+Alert.View
+Alert.Manage
+Command.Execute
+Report.Export
+Firmware.Manage
+User.Manage
+
+
+Tenant isolation is mandatory.
+
+
+============================================================
+41. SECURITY
+============================================================
+
+Never hardcode:
+
+Passwords
+JWT secrets
+MQTT credentials
+Database credentials
+
+
+Use:
+
+Environment variables
+appsettings
+User Secrets
+
+
+Implement:
+
+- Authentication
+- Authorization
+- Input validation
+- MQTT authentication
+- TLS
+- Password hashing
+- Audit logging
+
+
+Never log secrets.
+
+
+============================================================
+42. API DESIGN
+============================================================
+
+Authentication:
+
+POST /api/auth/login
+
+
+Tenants:
+
+GET /api/tenants
+POST /api/tenants
+
+
+Sites:
+
+GET /api/sites
+POST /api/sites
+
+
+Devices:
+
+GET /api/devices
+GET /api/devices/{id}
+POST /api/devices
+PUT /api/devices/{id}
+DELETE /api/devices/{id}
+
+
+Telemetry:
+
+GET /api/devices/{id}/telemetry
+GET /api/telemetry/latest
+GET /api/telemetry/history
+
+
+Alerts:
+
+GET /api/alerts
+POST /api/alerts/{id}/acknowledge
+POST /api/alerts/{id}/resolve
+
+
+Commands:
+
+POST /api/devices/{id}/commands
+
+
+Configuration:
+
+GET /api/devices/{id}/configuration
+PUT /api/devices/{id}/configuration
+
+
+Firmware:
+
+GET /api/firmware
+POST /api/firmware
+POST /api/firmware/deploy
+
+
+Payload Mapping:
+
+GET /api/devices/{id}/payload-mapping
+PUT /api/devices/{id}/payload-mapping
+
+
+Raw Messages:
+
+GET /api/devices/{id}/raw-messages
+POST /api/raw-messages/{id}/replay
+
+
+Reports:
+
+GET /api/reports/telemetry
+GET /api/reports/alerts
+
+
+HTTP ingestion:
+
+POST /api/ingestion/http/{deviceId}
+
+
+Use:
+
+- DTOs
+- Validation
+- Pagination
+- Filtering
+- Sorting
+- Consistent error handling
+
+
+Never expose EF Core entities directly through APIs.
+
+
+============================================================
+43. ERROR HANDLING
+============================================================
+
+Use centralized exception handling.
+
+
+Response:
+
+{
+  "success": false,
+  "message": "Device not found",
+  "errorCode": "DEVICE_NOT_FOUND",
+  "traceId": "..."
+}
+
+
+Handle:
+
+400
+401
+403
+404
+409
+422
+500
+
+
+============================================================
+44. OBSERVABILITY
+============================================================
+
+Use structured logging.
+
+
+Log:
+
+MQTT connection
+MQTT disconnect
+MQTT reconnect
+TCP connection
+TCP disconnect
+BACnet communication
+HTTP ingestion
+Raw message
+Decoder selection
+Payload mapping
+Normalization
+Validation failure
+Telemetry persistence
+Alert creation
+Command sending
+Command acknowledgement
+FOTA deployment
+
+
+Health endpoints:
+
+/health
+/health/live
+/health/ready
+
+
+Health checks:
+
+PostgreSQL
+InfluxDB
+MQTT
+Application
+
+
+Use correlation IDs.
+
+
+============================================================
+45. PERFORMANCE
+============================================================
+
+Initial target:
+
+100 simulated devices.
+
+
+Architecture should be capable of evolving toward:
+
+1,000+
+10,000+ devices
+
+
+Avoid:
+
+- N+1 queries
+- Blocking async calls
+- Unbounded memory
+- Unbounded queues
+- Unnecessary database calls
+
+
+Use:
+
+- async/await
+- CancellationToken
+- Pagination
+- Database indexes
+- Batch processing
+- Connection pooling
+- Proper MQTT connection management
+
+
+Do NOT introduce Kafka simply because the system is IoT.
+
+First demonstrate the need.
+
+
+============================================================
+46. CLEAN ARCHITECTURE
+============================================================
+
+Use:
+
+IoT.Domain
+IoT.Application
+IoT.Infrastructure
+IoT.Api
+
+
+Additional services/projects where justified:
+
+IoT.Ingestion
+IoT.Protocols
+IoT.Alerting
+IoT.DeviceManagement
+
+
+Dependency direction:
+
+API
+ ↓
+Application
+ ↓
+Domain
+
+
+Infrastructure
+ ↓
+Application / Domain
+
+
+Domain must NOT depend on:
+
+MQTT
+TCP
+BACnet
+HTTP
+PostgreSQL
+EF Core
+InfluxDB
+Next.js
+
+
+============================================================
+47. REPOSITORY STRUCTURE
+============================================================
+
+iot-monitoring-platform/
+
+  src/
+
+    IoT.Api/
+    IoT.Application/
+    IoT.Domain/
+    IoT.Infrastructure/
+
+    IoT.Ingestion/
+    IoT.Protocols/
+    IoT.Alerting/
+    IoT.DeviceManagement/
+
+    web/
+      iot-dashboard/
+
+  tests/
+
+    IoT.UnitTests/
+    IoT.IntegrationTests/
+
+  simulators/
+
+    IoT.DeviceSimulator/
+
+  infrastructure/
+
+    docker/
+    mosquitto/
+    postgres/
+    influxdb/
+
+  docs/
+
+    architecture/
+    api/
+    mqtt/
+    tcp/
+    bacnet/
+    protocols/
+    database/
+    deployment/
+    troubleshooting/
+
+  scripts/
+
+  docker-compose.yml
+
+  README.md
+
+
+============================================================
+48. DOCKER
+============================================================
+
+Docker Compose should support:
+
+PostgreSQL
+InfluxDB
+Mosquitto
+ASP.NET Core API
+IoT Ingestion Worker
+Next.js
+
+
+Example:
+
+docker compose up -d
+
+
+Ports:
+
+Next.js:
+3000
+
+ASP.NET Core:
+5000
+
+Swagger:
+5000/swagger
+
+MQTT:
+1883
+
+MQTTS:
+8883
+
+PostgreSQL:
+5432
+
+InfluxDB:
+8086
+
+
+============================================================
+49. TESTING
+============================================================
+
+Use:
+
+xUnit
+
+
+Unit tests:
+
+- JSON decoder
+- JSON mapper
+- Binary decoder
+- HEX decoder
+- CRC
+- Validation
+- Normalization
+- Alert engine
+- Device status
+- Command handling
+- Payload mapping
+- Mapping version selection
+
+
+Integration tests:
+
+- MQTT ingestion
+- TCP ingestion
+- HTTP ingestion
+- BACnet mapping
+- PostgreSQL persistence
+- InfluxDB persistence
+- Alert generation
+- Command flow
+- SignalR updates
+- Raw message replay
+
+
+Test realistic behavior.
+
+Do not create meaningless tests simply to increase coverage.
+
+
+============================================================
+50. PRODUCTION FAILURE SCENARIOS
+============================================================
+
+Demonstrate:
+
+MQTT broker unavailable
+MQTT reconnect
+TCP disconnect
+TCP partial packet
+TCP malformed packet
+BACnet communication failure
+HTTP invalid request
+Malformed JSON
+Unknown JSON structure
+Missing JSON field
+Invalid JSON type
+Wrong payload mapping
+Outdated payload mapping
+Invalid binary payload
+Unknown device
+Unknown tenant
+Duplicate telemetry
+Out-of-order telemetry
+Future timestamp
+Old timestamp
+PostgreSQL unavailable
+InfluxDB unavailable
+Alert flooding
+Device offline
+Device reconnect
+Command timeout
+FOTA failure
+
+
+For each:
+
+Detect
+Log
+Recover
+Notify
+Continue processing other devices
+
+
+============================================================
+51. RAW MESSAGE REPLAY
+============================================================
+
+Create an authorized development/admin feature:
+
+Stored Raw Message
+      ↓
+Replay
+      ↓
+Decoder
+      ↓
+Mapper
+      ↓
+NormalizedTelemetry
+      ↓
+Validation
+      ↓
+Processing
+
+
+This is especially useful when a vendor changes their JSON format.
+
+
+============================================================
+52. REPORTING
+============================================================
+
+Create:
+
+Telemetry Report
+Alert Report
+Device Uptime Report
+Site Summary
+Tenant Summary
+Daily Summary
+
+
+Export:
+
+CSV
+Excel
+PDF
+
+
+Use appropriate PostgreSQL and InfluxDB queries.
+
+
+============================================================
+53. DOCUMENTATION
+============================================================
+
+Create:
+
+README.md
+
+docs/architecture/system-architecture.md
+
+docs/architecture/data-flow.md
+
+docs/mqtt/topic-design.md
+
+docs/mqtt/qos.md
+
+docs/mqtt/reliability.md
+
+docs/tcp/tcp-framing.md
+
+docs/bacnet/bacnet-integration.md
+
+docs/protocols/payload-decoding.md
+
+docs/protocols/payload-mapping.md
+
+docs/protocols/normalization.md
+
+docs/database/schema.md
+
+docs/database/postgresql.md
+
+docs/database/influxdb.md
+
+docs/api/api-design.md
+
+docs/deployment/docker.md
+
+docs/troubleshooting/common-issues.md
+
+
+Documentation must explain:
+
+- What the component does
+- Why it exists
+- How data flows
+- Failure scenarios
+- Design decisions
+
+
+============================================================
+54. DEVELOPMENT PHASES
+============================================================
+
+PHASE 1
+
+Repository
+Solution
+Clean Architecture
+Next.js skeleton
+Docker skeleton
+Documentation
+
+
+PHASE 2
+
+Domain Model
+
+Tenant
+Site
+Device
+DeviceType
+Gateway
+Telemetry
+RawMessage
+PayloadMapping
+Alerts
+Commands
+Configuration
+Firmware
+Users
+Roles
+AuditLog
+
+
+PHASE 3
+
+PostgreSQL
+
+EF Core
+Relationships
+Indexes
+Migrations
+Seed Data
+
+
+PHASE 4
+
+InfluxDB
+
+Telemetry model
+Measurements
+Tags
+Fields
+Queries
+Retention concepts
+
+
+PHASE 5
+
+Mosquitto
+
+MQTT
+Topics
+QoS
+LWT
+Retained Messages
+Authentication
+TLS
+
+
+PHASE 6
+
+.NET MQTT ingestion
+
+Raw messages
+JSON telemetry
+Normalization
+
+
+PHASE 7
+
+Multiple JSON vendor formats
+
+Payload mapping
+Mapping configuration
+Mapping versioning
+
+
+PHASE 8
+
+HEX / Binary
+
+Binary decoder
+Framing
+CRC
+Sequence numbers
+
+
+PHASE 9
+
+TCP/IP
+
+TCP server
+Connections
+Framing
+Reconnect
+JSON
+Binary
+
+
+PHASE 10
+
+BACnet
+
+BACnet integration
+Device/object mapping
+Normalization
+
+
+PHASE 11
+
+HTTP ingestion
+
+
+PHASE 12
+
+Unified normalization pipeline
+
+
+PHASE 13
+
+Device management
+
+Registration
+Status
+Heartbeat
+Health
+
+
+PHASE 14
+
+Alert engine
+
+
+PHASE 15
+
+SignalR
+
+
+PHASE 16
+
+Next.js dashboard
+
+
+PHASE 17
+
+Authentication
+Authorization
+RBAC
+Tenant isolation
+
+
+PHASE 18
+
+Commands
+
+
+PHASE 19
+
+Remote configuration
+
+
+PHASE 20
+
+FOTA simulation
+
+
+PHASE 21
+
+Reports
+
+
+PHASE 22
+
+Device simulator scaling
+
+
+PHASE 23
+
+Raw message replay
+
+
+PHASE 24
+
+Testing
+
+
+PHASE 25
+
+Docker
+
+
+PHASE 26
+
+Observability
+
+
+PHASE 27
+
+Performance
+
+
+PHASE 28
+
+Production hardening
+
+
+============================================================
+55. LEARNING MODE
+============================================================
+
+I am using this project to become a strong IoT software engineer.
+
+Do NOT simply dump code.
+
+For every major module:
+
+1. Explain the problem.
+2. Explain the architecture.
+3. Explain why the architecture was chosen.
+4. Explain data flow.
+5. Explain important classes.
+6. Explain interfaces.
+7. Implement it.
+8. Add tests.
+9. Explain how to run it.
+10. Explain how to debug it.
+11. Explain production failure scenarios.
+12. Give interview questions.
+13. Explain common mistakes.
+14. Explain possible improvements.
+
+
+When multiple approaches are valid:
+
+Explain the alternatives.
+
+Then choose one and explain why.
+
+
+============================================================
+56. IMPORTANT DEVELOPMENT RULE
+============================================================
+
+DO NOT generate the entire application at once.
+
+Work phase-by-phase.
+
+After every phase:
+
+1. Show changed files.
+2. Explain architecture.
+3. Explain data flow.
+4. Provide implementation.
+5. Provide commands.
+6. Provide tests.
+7. Verify compilation.
+8. Verify tests.
+9. Explain debugging.
+10. Explain production considerations.
+11. Explain what I learned.
+12. Give interview questions.
+13. Identify known limitations.
+14. Identify technical debt.
+15. Then WAIT for my instruction.
+
+
+============================================================
+57. FIRST TASK
+============================================================
+
+START ONLY WITH PHASE 1.
+
+Create:
+
+1. .NET solution
+2. Clean Architecture projects
+3. Project references
+4. Next.js TypeScript application
+5. Docker Compose skeleton
+6. Mosquitto configuration skeleton
+7. PostgreSQL configuration skeleton
+8. InfluxDB configuration skeleton
+9. README
+10. Architecture documentation
+11. MQTT topic documentation
+12. TCP architecture documentation
+13. BACnet architecture documentation
+14. Payload decoder architecture
+15. Payload mapping architecture
+16. Normalization architecture
+17. PostgreSQL/InfluxDB responsibility documentation
+18. .gitignore
+19. Environment configuration structure
+
+
+DO NOT IMPLEMENT YET:
+
+- MQTT ingestion
+- TCP server
+- BACnet communication
+- HTTP ingestion
+- Telemetry processing
+- Alert engine
+- Authentication
+- Dashboard functionality
+- Payload decoders
+- FOTA
+
+
+First establish the architecture correctly.
+
+
+After Phase 1, explain:
+
+- Complete system architecture
+- Domain boundaries
+- Transport boundaries
+- Protocol boundaries
+- Payload format boundaries
+- Payload mapping
+- Mapping versioning
+- Normalization
+- MQTT topic hierarchy
+- Next.js architecture
+- PostgreSQL responsibility
+- InfluxDB responsibility
+- Dependency direction
+- Complete data flow
+
+
+Then WAIT for my instruction to continue to PHASE 2.

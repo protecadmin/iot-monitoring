@@ -1,0 +1,39 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+
+  "ConnectionStrings": {
+    "Postgres": "Host=localhost;Port=5432;Database=bms_platform;Username=bms_app;Password=devpassword"
+  },
+
+  "InfluxDb": {
+    "Url": "http://localhost:8086",
+    "Org": "bms-platform",
+    "Bucket": "telemetry",
+    "Token": "dev-influx-admin-token-change-me"
+  },
+
+  "Mqtt": {
+    "Host": "localhost",
+    "Port": 1883,
+    "Username": "bms-api-realtime-bridge",
+    "Password": "change-me"
+  },
+
+  "Jwt": {
+    "SecretKey": "dev-only-jwt-signing-key-please-change-in-any-real-deployment-0123456789"
+  },
+
+  "Encryption": {
+    "Key": "generate-your-own-with: openssl rand -base64 32"
+  },
+
+  // Must match the Connector Service's ConnectorService:ApiKey.
+  "Connectors": {
+    "ServiceApiKey": "dev-only-connector-service-key-change-me"
+  }
+}

@@ -1,0 +1,43 @@
+# This is NOT a real password file — Mosquitto password files must be
+# generated with mosquitto_passwd, which stores salted/hashed passwords.
+#
+# Generate the real file (git-ignored) with one command per credential.
+# Match these to whatever you set in .env:
+#
+#   docker run --rm -it -v "$(pwd)/infrastructure/mosquitto:/mosquitto/config" \
+#     eclipse-mosquitto:2 \
+#     mosquitto_passwd -c -b /mosquitto/config/passwd bms-api-realtime-bridge change-me
+#
+#   docker run --rm -it -v "$(pwd)/infrastructure/mosquitto:/mosquitto/config" \
+#     eclipse-mosquitto:2 \
+#     mosquitto_passwd -b /mosquitto/config/passwd bms-ingestion change-me
+#
+#   docker run --rm -it -v "$(pwd)/infrastructure/mosquitto:/mosquitto/config" \
+#     eclipse-mosquitto:2 \
+#     mosquitto_passwd -b /mosquitto/config/passwd bms-connectors change-me
+#
+# One device-facing credential PER TENANT (username == tenant slug) — see
+# ../acl, which restricts each one to iot/{tenant-slug}/# via pattern
+# substitution. Add one line per tenant you actually seed/use; the three
+# below match DbSeeder's dev tenants.
+#
+#   docker run --rm -it -v "$(pwd)/infrastructure/mosquitto:/mosquitto/config" \
+#     eclipse-mosquitto:2 \
+#     mosquitto_passwd -b /mosquitto/config/passwd whirlpool devicepassword
+#   docker run --rm -it -v "$(pwd)/infrastructure/mosquitto:/mosquitto/config" \
+#     eclipse-mosquitto:2 \
+#     mosquitto_passwd -b /mosquitto/config/passwd abc-manufacturing devicepassword
+#   docker run --rm -it -v "$(pwd)/infrastructure/mosquitto:/mosquitto/config" \
+#     eclipse-mosquitto:2 \
+#     mosquitto_passwd -b /mosquitto/config/passwd demo-company devicepassword
+#
+# (drop -c on every command after the first — it truncates the file)
+#
+# This is tenant-level isolation, not per-device isolation: a device
+# authenticated as "whirlpool" cannot touch another tenant's topics, but
+# it CAN still spoof another device within the same tenant. True
+# per-device credentials need a dynamic auth backend (static password
+# files can't be provisioned per-device as devices are added/removed via
+# the API) — see docs/mqtt/reliability.md for that follow-up.
+#
+# The resulting infrastructure/mosquitto/passwd file is git-ignored.

@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BMS Platform — Architecture &amp; Production Readiness</title>
+<style>
+  @page { size: A4 landscape; margin: 14mm 16mm 16mm; }
+  :root {
+    --ink:#15202a; --muted:#5b6b78; --line:#d6dee4; --line2:#b9c6ce;
+    --raw:#0f7d84; --derived:#5b3fc4; --warn:#9a5310; --bad:#a83026;
+    --surface:#fff; --surface2:#f1f5f7;
+    --line-strong:#9fb0ba; --surface-2:#eef2f4;
+    --raw-soft:#dff1f1; --derived-soft:#ece7fb; --warn-soft:#fbeedd; --bad-soft:#fbe4e1;
+    --cond: var(--sans);
+    --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --mono: "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin:0; font: 9.8pt/1.45 var(--sans); color: var(--ink); background:#fff; }
+  h1 { font-size: 21pt; line-height:1.08; margin:0 0 3mm; letter-spacing:-0.01em; }
+  h2 { font-size: 13pt; margin: 0 0 3mm; padding-bottom:1.5mm; border-bottom:1.5pt solid var(--ink); }
+  h3 { font-size: 10.5pt; margin: 0 0 1.5mm; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 2.5mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  code, .mono { font-family: var(--mono); font-size: 9pt; }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  .eyebrow { font-size:8.5pt; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--raw); margin-bottom:2mm; }
+  .muted { color: var(--muted); }
+  .lede { font-size: 10.8pt; color:var(--muted); max-width: 190mm; }
+  .cols { column-count: 2; column-gap: 10mm; }
+  .cols > * { break-inside: avoid; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:6mm; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:5mm; }
+  table { border-collapse:collapse; width:100%; font-size:8.8pt; margin-bottom:2.5mm; }
+  th,td { text-align:left; padding:1.1mm 2.2mm; border-bottom:.5pt solid var(--line); vertical-align:top; }
+  th { font-size:8pt; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); background:var(--surface2); border-bottom:1pt solid var(--line2); }
+  td.k { font-weight:600; white-space:nowrap; }
+  .card { border:.75pt solid var(--line); border-radius:2mm; padding:3mm 3.5mm; background:var(--surface); }
+  .card.accent { border-left:2.5pt solid var(--raw); }
+  .card.warnx { border-left:2.5pt solid var(--warn); }
+  .card.badx  { border-left:2.5pt solid var(--bad); }
+  .card.okx   { border-left:2.5pt solid var(--derived); }
+  .pill { display:inline-block; font-size:8pt; font-weight:600; padding:.8mm 2mm; border-radius:1mm; background:var(--surface2); color:var(--muted); }
+  .pill.p1 { background:#fbe4e1; color:var(--bad); }
+  .pill.p2 { background:#fbeedd; color:var(--warn); }
+  .pill.p3 { background:#e9eef1; color:var(--muted); }
+  .figwrap { border:.75pt solid var(--line); border-radius:2mm; padding:2.5mm; max-width:236mm; margin:0 auto; }
+  svg.diagram { display:block; width:100%; height:auto; }
+  .foot { font-size:8pt; color:var(--muted); border-top:.5pt solid var(--line); padding-top:1.5mm; margin-top:3mm; }
+  .kpi { display:grid; grid-template-columns:repeat(5,1fr); gap:3.5mm; margin:3.5mm 0; }
+  .kpi div { border:.75pt solid var(--line); border-radius:2mm; padding:2mm 2.5mm; }
+  .kpi b { display:block; font-size:13.5pt; line-height:1.2; }
+  .kpi span { font-size:7.5pt; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  .num { font-family:var(--mono); font-weight:600; color:var(--raw); }
+/* ---------- diagram parts ---------- */
+  .zone { fill: none; stroke: var(--line); stroke-dasharray: 3 5; }
+  .zone-label { font: 600 10px var(--cond); letter-spacing: 0.13em; fill: var(--muted); text-transform: uppercase; }
+
+  .node .box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; transition: stroke .3s, fill .3s; }
+  .node .ic { color: var(--raw); transition: color .3s; }
+  .node.store .ic { color: var(--derived); }
+  .node.out .ic { color: var(--warn); }
+  .node .t1 { font: 600 15px var(--sans); fill: var(--ink); }
+  .node .t2 { font: 11.5px var(--mono); fill: var(--muted); }
+  .node .t3 { font: 10px var(--mono); fill: var(--muted); opacity: .85; }
+  .node .badge { font: 600 9.5px var(--mono); letter-spacing: .09em; fill: var(--bad); opacity: 0; }
+  .node .ring { fill: none; stroke: var(--raw); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+
+  .node.hot .box { stroke: var(--warn); fill: var(--warn-soft); }
+  .node.hot .ic { color: var(--warn); }
+  .node.hot .ring { stroke: var(--warn); animation: ping 2s ease-out infinite; }
+  .node.down .box { stroke: var(--bad); fill: var(--bad-soft); stroke-dasharray: 6 4; }
+  .node.down .ic { color: var(--bad); }
+  .node.down .t1, .node.down .t2, .node.down .t3 { opacity: .5; }
+  .node.down .badge { opacity: 1; animation: blink 1.4s steps(1) infinite; }
+  .node.down .ring { stroke: var(--bad); animation: ping 1.8s ease-out infinite; }
+  @keyframes ping { 0% { opacity: .55; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(1.045); } }
+  @keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: .25; } }
+
+  .edge { fill: none; stroke: var(--line-strong); stroke-width: 1.6; transition: stroke .3s; }
+  .edge.dash { stroke-dasharray: 5 5; }
+  .el { font: 500 10.5px var(--mono); fill: var(--muted); }
+  .ah { fill: var(--line-strong); fill: context-stroke; }
+  .ah-v { fill: var(--derived); fill: context-stroke; }
+  .ah-w { fill: var(--warn); fill: context-stroke; }
+
+  /* packets: a dash travelling along a clone of each edge */
+  .flow { fill: none; stroke-linecap: round; animation-name: rush; animation-timing-function: linear; animation-iteration-count: infinite; }
+  .flow.dot { stroke-width: 8; }
+  .flow.trail { stroke-width: 2.5; opacity: .42; }
+  .flow.teal { stroke: var(--raw); }
+  .flow.violet { stroke: var(--derived); }
+  .flow.amber { stroke: var(--warn); }
+  .flow.as-lit { stroke: var(--warn); }
+  .flow.off { display: none; }
+  @keyframes rush { from { stroke-dashoffset: var(--off); } to { stroke-dashoffset: 0; } }
+  .paused .flow, .paused .slot, .paused .w, .paused .ring { animation-play-state: paused; }
+
+  .link.stalled .edge { stroke: var(--bad); stroke-dasharray: 6 4; }
+  .link.stalled .el { fill: var(--bad); }
+  .link.stalled .ahx { fill: var(--bad); }
+  .link.idle .edge { opacity: .4; }
+  .link.idle .el { opacity: .55; }
+  .link.lit .edge { stroke: var(--warn); stroke-width: 2.2; }
+  .link.lit .el { fill: var(--warn); }
+
+  .slot { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 1; transition: fill .4s, stroke .4s; }
+  .slot.on { fill: var(--warn); stroke: var(--warn); }
+  .slot.blip { animation: blip 3.2s ease-in-out infinite; }
+  @keyframes blip { 0%, 72%, 100% { fill: var(--surface-2); } 78%, 90% { fill: var(--raw); } }
+  .qlab { font: 500 10px var(--mono); fill: var(--muted); }
+
+  .w { fill: none; stroke: var(--raw); stroke-width: 1.6; stroke-linecap: round; opacity: 0; animation: wave 2.1s ease-out infinite; }
+  .w2 { animation-delay: .35s; }
+  .w3 { animation-delay: .7s; }
+  @keyframes wave { 0% { opacity: 0; } 25% { opacity: .9; } 100% { opacity: 0; } }
+  .node.down .w { animation: none; opacity: 0; }
+
+  .node .t1 { font-size: 15px; }
+  .tight table { font-size:7.9pt; margin-bottom:1mm; line-height:1.3; }
+  .tight td { padding:0.8mm 2.2mm; }
+</style>
+</head>
+<body>
+<!-- ============ PAGE 1 ============ -->
+<section class="page">
+  <div class="eyebrow">Technical review · for the engineering team</div>
+  <h1>BMS Industrial IoT Platform</h1>
+  <p class="lede">Current architecture, the technology in use, the guarantees the system makes, and what is still outstanding before production. Every statement here was read from the repository.</p>
+
+  <div class="kpi">
+    <div><b>6</b><span>runtime services</span></div>
+    <div><b>2</b><span>databases</span></div>
+    <div><b>.NET 10</b><span>backend</span></div>
+    <div><b>Next.js 16</b><span>dashboard</span></div>
+    <div><b>120+</b><span>automated tests</span></div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <h2>What the platform does</h2>
+      <p>Field devices publish readings over MQTT. The platform decodes each vendor's payload into a common shape, stores the original bytes and the normalized reading, evaluates alert rules and derived values, and pushes live updates to a browser dashboard.</p>
+      <ul>
+        <li><b>Multi-tenant.</b> Every device, reading and alert belongs to a tenant and a site; access is scoped by JWT claims and enforced again at the broker by per-tenant MQTT ACLs.</li>
+        <li><b>Vendor-agnostic.</b> Our own gateway reads each device in its native protocol and publishes JSON over MQTT keyed by BMS parameter keys, so BMS never handles vendor formats.</li>
+        <li><b>Never discards raw data.</b> The exact bytes received are kept, so a vendor's malformed message can be debugged and replayed after a decoder fix.</li>
+        <li><b>Survives its own outages.</b> Each dependency can fail independently without losing a reading. Section 5 states exactly what is guaranteed.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>The journey of one reading</h2>
+      <table>
+        <tr><td class="k num">1</td><td>Device publishes to <code>iot/{tenant}/{site}/{device}/telemetry</code> at QoS 1 over TLS.</td></tr>
+        <tr><td class="k num">2</td><td>Mosquitto delivers it to the <code>bms-ingestion</code> persistent session.</td></tr>
+        <tr><td class="k num">3</td><td>The worker decodes, validates and deduplicates it <i>in memory</i>.</td></tr>
+        <tr><td class="k num">4</td><td><b>The raw bytes are committed to PostgreSQL.</b></td></tr>
+        <tr><td class="k num">5</td><td><b>Only now is the broker acknowledged.</b> Anything that failed before this point is redelivered.</td></tr>
+        <tr><td class="k num">6</td><td>The normalized point is written to InfluxDB.</td></tr>
+        <tr><td class="k num">7</td><td>Device status, calculations and alert rules run; critical alerts go to email and Telegram.</td></tr>
+        <tr><td class="k num">8</td><td>A live event is published back to the broker; the API re-broadcasts it over SignalR to the dashboard.</td></tr>
+      </table>
+      <p class="muted" style="font-size:9pt">Steps 4 and 5 in that order are the core design decision. Everything in section 5 follows from it.</p>
+    </div>
+  </div>
+  <div class="foot">BMS Platform · architecture &amp; production readiness · generated from the repository</div>
+</section>
+
+<!-- ============ PAGE 2 ============ -->
+<section class="page">
+  <h2>1 · Architecture</h2>
+  <div class="figwrap">
+<svg class="diagram" id="diagram" viewBox="0 0 1200 650" role="img"
+             aria-label="Live architecture: devices publish MQTT messages to Mosquitto, the ingestion worker decodes and deduplicates them, stores the raw message in PostgreSQL and only then acknowledges the broker, writes points to InfluxDB, runs calculations and alert rules in the same process, and publishes live events back to the broker on bms/realtime/events, where the API picks them up and re-broadcasts over SignalR to the Next.js dashboard.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path class="ah ahx" d="M0,0 L10,5 L0,10 Z"/></marker>
+            <marker id="arv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path class="ah-v ahx" d="M0,0 L10,5 L0,10 Z"/></marker>
+            <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path class="ah-w ahx" d="M0,0 L10,5 L0,10 Z"/></marker>
+
+            <g id="ic-device" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="10" width="14" height="11" rx="2.5"/><circle cx="12" cy="15.5" r="2.1"/>
+              <path d="M8.6 7.2a5 5 0 0 1 6.8 0"/><path d="M6.2 4.4a9 9 0 0 1 11.6 0"/>
+            </g>
+            <g id="ic-broker" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3.2"/><circle cx="4.4" cy="5.6" r="1.9"/><circle cx="4.4" cy="18.4" r="1.9"/><circle cx="19.6" cy="12" r="1.9"/>
+              <path d="M6 7 9.6 10M6 17 9.6 14M15.2 12h2.4"/>
+            </g>
+            <g id="ic-worker" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3.3"/>
+              <path d="M12 2.6v2.8M12 18.6v2.8M21.4 12h-2.8M5.4 12H2.6M18.6 5.4l-2 2M7.4 16.6l-2 2M18.6 18.6l-2-2M7.4 7.4l-2-2"/>
+            </g>
+            <g id="ic-db" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <ellipse cx="12" cy="6.4" rx="7.4" ry="3"/>
+              <path d="M4.6 6.4v11.2c0 1.7 3.3 3 7.4 3s7.4-1.3 7.4-3V6.4"/>
+              <path d="M4.6 12c0 1.7 3.3 3 7.4 3s7.4-1.3 7.4-3"/>
+            </g>
+            <g id="ic-series" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <ellipse cx="12" cy="6.4" rx="7.4" ry="3"/>
+              <path d="M4.6 6.4v11.2c0 1.7 3.3 3 7.4 3s7.4-1.3 7.4-3V6.4"/>
+              <path d="M7.4 15.6l2.6-3 2.4 2.2 4.2-5"/>
+            </g>
+            <g id="ic-calc" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3.2 17.4l4.6-5.6 3.6 3.4 4.4-7.6"/><path d="M3.2 21h17.6"/>
+              <path d="M18.6 3.4v5.2"/><circle cx="18.6" cy="11.2" r=".9" fill="currentColor" stroke="none"/>
+            </g>
+            <g id="ic-bell" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 16.4v-5a6 6 0 1 1 12 0v5l1.6 2.6H4.4z"/><path d="M9.9 21.2a2.3 2.3 0 0 0 4.2 0"/>
+            </g>
+            <g id="ic-api" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8.4 4.8 3.6 12l4.8 7.2M15.6 4.8 20.4 12l-4.8 7.2"/><path d="M13.6 4.2 10.4 19.8"/>
+            </g>
+            <g id="ic-screen" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2.8" y="4.4" width="18.4" height="15.2" rx="2.6"/><path d="M2.8 9h18.4"/>
+              <path d="M7 16.2v-3.4M11.6 16.2v-5.6M16.2 16.2v-2.4"/>
+            </g>
+            <g id="ic-replay" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.4 12a8.4 8.4 0 1 1-2.7-6.2"/><path d="M20.8 3.2v5.6h-5.6"/>
+            </g>
+          </defs>
+
+          <!-- zones -->
+          <g id="zones">
+            <rect class="zone" x="16" y="252" width="460" height="212" rx="14"/>
+            <text class="zone-label" x="30" y="274">Edge &amp; messaging</text>
+            <rect class="zone" x="476" y="56" width="464" height="580" rx="14"/>
+            <text class="zone-label" x="490" y="78">Ingestion &amp; storage</text>
+            <rect class="zone" x="956" y="56" width="220" height="580" rx="14"/>
+            <text class="zone-label" x="970" y="78">Apps &amp; users</text>
+          </g>
+
+          <!-- edges: one <path class="edge"> per link; packets are cloned from these at runtime -->
+          <g id="edges">
+            <g class="link" id="l-pub">
+              <path class="edge" d="M216,340 L261,340" marker-end="url(#ar)"/>
+              <text class="el" x="238" y="331" text-anchor="middle">QoS 1</text>
+            </g>
+            <g class="link" id="l-deliver">
+              <path class="edge" d="M446,324 L491,324" marker-end="url(#ar)"/>
+              <text class="el" x="468" y="315" text-anchor="middle">deliver</text>
+            </g>
+            <g class="link" id="l-ack" data-tone="violet">
+              <path class="edge dash" d="M496,362 L451,362" marker-end="url(#arv)"/>
+              <text class="el" x="473" y="379" text-anchor="middle">2 · ack</text>
+            </g>
+            <g class="link" id="l-raw">
+              <path class="edge" d="M676,318 C716,318 706,124 741,124" marker-end="url(#ar)"/>
+              <text class="el" x="716" y="222" text-anchor="start">1 · raw insert</text>
+            </g>
+            <g class="link" id="l-norm">
+              <path class="edge" d="M676,344 L741,344" marker-end="url(#ar)"/>
+              <text class="el" x="708" y="335" text-anchor="middle">reading</text>
+            </g>
+            <g class="link" id="l-points">
+              <path class="edge" d="M676,370 C712,370 706,544 741,544" marker-end="url(#ar)"/>
+              <text class="el" x="714" y="466" text-anchor="start">3 · points</text>
+            </g>
+            <g class="link" id="l-status">
+              <path class="edge" d="M836,292 L836,197" marker-end="url(#ar)"/>
+              <text class="el" x="846" y="226" text-anchor="start">status · alerts</text>
+              <text class="el" x="846" y="242" text-anchor="start">calc state</text>
+            </g>
+            <g class="link" id="l-alert" data-tone="amber">
+              <path class="edge" d="M926,318 C958,318 950,144 971,144" marker-end="url(#arw)"/>
+              <text class="el" x="918" y="276" text-anchor="end">alert fires</text>
+            </g>
+            <g class="link" id="l-bridge-pub">
+              <path class="edge" d="M536,292 L536,246 Q536,236 526,236 L386,236 Q376,236 376,246 L376,292" marker-end="url(#ar)"/>
+              <text class="el" x="456" y="228" text-anchor="middle">4 · publish events</text>
+            </g>
+            <g class="link" id="l-bridge-sub">
+              <path class="edge" d="M406,292 L406,44 Q406,34 416,34 L1156,34 Q1166,34 1166,44 L1166,310 Q1166,320 1156,320" marker-end="url(#ar)"/>
+              <text class="el" x="786" y="22" text-anchor="middle">bms/realtime/events · best-effort</text>
+              <text class="el" x="786" y="50" text-anchor="middle">bms/ingestion/…/status · retained + last will</text>
+              <text class="el" x="1158" y="250" text-anchor="end">5 · re-broadcast</text>
+            </g>
+            <g class="link" id="l-push">
+              <path class="edge" d="M1026,392 L1026,491" marker-end="url(#ar)"/>
+              <text class="el" x="1034" y="438" text-anchor="start">SignalR</text>
+            </g>
+            <g class="link" id="l-rest" data-tone="violet">
+              <path class="edge dash" d="M1106,491 L1106,397" marker-end="url(#arv)"/>
+              <text class="el" x="1098" y="468" text-anchor="end">REST</text>
+            </g>
+            <g class="link" id="l-flux" data-tone="violet">
+              <path class="edge dash" d="M992,392 C966,438 956,520 931,520" marker-end="url(#arv)"/>
+              <text class="el" x="966" y="482" text-anchor="end">flux query</text>
+            </g>
+            <g class="link" id="l-replay" data-tone="amber">
+              <path class="edge dash" d="M741,176 C700,186 688,206 688,246 L688,486 C688,520 702,544 681,544" marker-end="url(#arw)"/>
+              <text class="el" x="678" y="236" text-anchor="end">unflushed rows</text>
+            </g>
+            <g class="link" id="l-backfill" data-tone="amber">
+              <path class="edge dash" d="M676,568 L741,568" marker-end="url(#arw)"/>
+              <text class="el" x="708" y="586" text-anchor="middle">backfill</text>
+            </g>
+          </g>
+
+          <!-- packets are injected here at runtime, between the lines and the boxes -->
+          <g id="flows"></g>
+
+          <!-- nodes -->
+          <g id="nodes">
+            <g class="node" id="n-dev" transform="translate(36,296)">
+              <rect class="ring" x="-5" y="-5" width="190" height="106" rx="19"/>
+              <rect class="box" width="180" height="96" rx="14"/>
+              <g class="ic"><use href="#ic-device" transform="translate(16,16) scale(1.2)"/></g>
+              <text class="t1" x="58" y="38">Devices</text>
+              <text class="t2" x="58" y="58">MQTT 5 · QoS 1</text>
+              <text class="t3" x="16" y="82">iot/…/{device}/telemetry</text>
+              <g transform="translate(152,40)">
+                <path class="w w1" d="M0,-5 A6,6 0 0 1 0,5"/>
+                <path class="w w2" d="M0,-9 A10.5,10.5 0 0 1 0,9"/>
+                <path class="w w3" d="M0,-13 A15,15 0 0 1 0,13"/>
+              </g>
+              <text class="badge" x="164" y="22" text-anchor="end">OFFLINE</text>
+            </g>
+
+            <g class="node" id="n-mq" transform="translate(266,296)">
+              <rect class="ring" x="-5" y="-5" width="190" height="106" rx="19"/>
+              <rect class="box" width="180" height="96" rx="14"/>
+              <g class="ic"><use href="#ic-broker" transform="translate(16,16) scale(1.2)"/></g>
+              <text class="t1" x="58" y="38">Mosquitto</text>
+              <text class="t2" x="58" y="58">persistent session</text>
+              <text class="t3" x="16" y="82">expiry 24 h · TLS 8883</text>
+              <text class="badge" x="164" y="22" text-anchor="end">DOWN</text>
+            </g>
+
+            <g class="node" id="n-ing" transform="translate(496,296)">
+              <rect class="ring" x="-5" y="-5" width="190" height="106" rx="19"/>
+              <rect class="box" width="180" height="96" rx="14"/>
+              <g class="ic"><use href="#ic-worker" transform="translate(16,16) scale(1.2)"/></g>
+              <text class="t1" x="58" y="38">Ingestion</text>
+              <text class="t2" x="58" y="58">.NET 10 worker</text>
+              <text class="t3" x="16" y="82">decode · validate · dedup</text>
+              <text class="badge" x="164" y="22" text-anchor="end">DOWN</text>
+            </g>
+
+            <g class="node store" id="n-pg" transform="translate(746,96)">
+              <rect class="ring" x="-5" y="-5" width="190" height="106" rx="19"/>
+              <rect class="box" width="180" height="96" rx="14"/>
+              <g class="ic"><use href="#ic-db" transform="translate(16,16) scale(1.2)"/></g>
+              <text class="t1" x="58" y="38">PostgreSQL</text>
+              <text class="t2" x="58" y="58">RawDeviceMessages</text>
+              <text class="t3" x="16" y="82">the ack boundary</text>
+              <text class="badge" x="164" y="22" text-anchor="end">DOWN</text>
+            </g>
+
+            <g class="node" id="n-calc" transform="translate(746,296)">
+              <rect class="ring" x="-5" y="-5" width="190" height="106" rx="19"/>
+              <rect class="box" width="180" height="96" rx="14"/>
+              <g class="ic"><use href="#ic-calc" transform="translate(16,16) scale(1.2)"/></g>
+              <text class="t1" x="58" y="38">Calc · alerts</text>
+              <text class="t2" x="58" y="58">lifecycle · rules</text>
+              <text class="t3" x="16" y="82">in-process, after the ack</text>
+              <text class="badge" x="164" y="22" text-anchor="end">DOWN</text>
+            </g>
+
+            <g class="node store" id="n-inf" transform="translate(746,496)">
+              <rect class="ring" x="-5" y="-5" width="190" height="106" rx="19"/>
+              <rect class="box" width="180" height="96" rx="14"/>
+              <g class="ic"><use href="#ic-series" transform="translate(16,16) scale(1.2)"/></g>
+              <text class="t1" x="58" y="38">InfluxDB</text>
+              <text class="t2" x="58" y="58">bucket "telemetry"</text>
+              <text class="t3" x="16" y="82">tagged tenant/site/device</text>
+              <text class="badge" x="164" y="22" text-anchor="end">DOWN</text>
+            </g>
+
+            <g class="node" id="n-bf" transform="translate(496,496)">
+              <rect class="ring" x="-5" y="-5" width="190" height="106" rx="19"/>
+              <rect class="box" width="180" height="96" rx="14"/>
+              <g class="ic"><use href="#ic-replay" transform="translate(16,16) scale(1.2)"/></g>
+              <text class="t1" x="58" y="38">Backfill worker</text>
+              <text class="t2" x="58" y="58">PostgreSQL → Influx</text>
+              <text class="t3" x="16" y="82">catches up after an outage</text>
+              <text class="badge" x="164" y="22" text-anchor="end">DOWN</text>
+            </g>
+
+            <g class="node out" id="n-notif" transform="translate(976,96)">
+              <rect class="ring" x="-5" y="-5" width="190" height="106" rx="19"/>
+              <rect class="box" width="180" height="96" rx="14"/>
+              <g class="ic"><use href="#ic-bell" transform="translate(16,16) scale(1.2)"/></g>
+              <text class="t1" x="58" y="38">Notifications</text>
+              <text class="t2" x="58" y="58">mail · Telegram</text>
+              <text class="badge" x="164" y="22" text-anchor="end">DOWN</text>
+            </g>
+
+            <g class="node" id="n-api" transform="translate(976,296)">
+              <rect class="ring" x="-5" y="-5" width="190" height="106" rx="19"/>
+              <rect class="box" width="180" height="96" rx="14"/>
+              <g class="ic"><use href="#ic-api" transform="translate(16,16) scale(1.2)"/></g>
+              <text class="t1" x="58" y="38">API</text>
+              <text class="t2" x="58" y="58">REST · SignalR</text>
+              <text class="t3" x="16" y="82">JWT · per-tenant scope</text>
+              <text class="badge" x="164" y="22" text-anchor="end">DOWN</text>
+            </g>
+
+            <g class="node" id="n-web" transform="translate(976,496)">
+              <rect class="ring" x="-5" y="-5" width="190" height="106" rx="19"/>
+              <rect class="box" width="180" height="96" rx="14"/>
+              <g class="ic"><use href="#ic-screen" transform="translate(16,16) scale(1.2)"/></g>
+              <text class="t1" x="58" y="38">Dashboard</text>
+              <text class="t2" x="58" y="58">Next.js 16 · React 19</text>
+              <text class="t3" x="16" y="82">charts · maps · alerts</text>
+              <text class="badge" x="164" y="22" text-anchor="end">DOWN</text>
+            </g>
+          </g>
+
+          <!-- broker queue -->
+          <g id="queue">
+            <text class="qlab" x="276" y="400">broker queue · session bms-ingestion</text>
+            <rect class="slot" x="276" y="408" width="20" height="16" rx="4"/>
+            <rect class="slot" x="302" y="408" width="20" height="16" rx="4"/>
+            <rect class="slot" x="328" y="408" width="20" height="16" rx="4"/>
+            <rect class="slot" x="354" y="408" width="20" height="16" rx="4"/>
+            <rect class="slot" x="380" y="408" width="20" height="16" rx="4"/>
+            <rect class="slot" x="406" y="408" width="20" height="16" rx="4"/>
+          </g>
+        </svg>  </div>
+  <p class="muted" style="font-size:9pt; margin-top:2.5mm">Teal arrows carry telemetry forward, violet carry acknowledgements and read-backs, amber are repair paths. The numbered arrows are the write order: raw insert, then the acknowledgement, then the time-series point, then the live event, then the re-broadcast. An interactive version of this diagram, with four failure scenarios animated, is at <code>docs/architecture/BMS Live Architecture.html</code>.</p>
+  <div class="foot">BMS Platform · architecture &amp; production readiness</div>
+</section>
+<!-- ============ PAGE 3 ============ -->
+<section class="page">
+  <h2>2 · Services and what each one owns</h2>
+  <table>
+    <thead><tr><th style="width:22%">Service</th><th style="width:16%">Runs as</th><th>Responsibility</th><th style="width:26%">Fails how</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Mosquitto</td><td>container</td><td>MQTT 5 broker. Device authentication and per-tenant ACLs via mosquitto-go-auth against PostgreSQL. Holds the persistent <code>bms-ingestion</code> session and queues QoS 1 messages while the worker is away.</td><td>Devices cannot publish; they must buffer or drop. This is the only hop the platform cannot cover.</td></tr>
+      <tr><td class="k">Bms.Ingestion</td><td>container<br>(own process)</td><td>MQTT worker, the ingestion pipeline, device lifecycle, calculations, alert evaluation, notification dispatch, the InfluxDB backfill worker and the liveness publisher.</td><td>Broker queues everything; nothing is lost up to the queue limits. Its last will tells the API it is gone.</td></tr>
+      <tr><td class="k">Bms.Api</td><td>container</td><td>REST API, JWT auth, SignalR hub, the real-time bridge subscriber, offline and timeout sweeps, Swagger.</td><td>Dashboard goes dark. Ingestion and storage continue unaffected.</td></tr>
+      <tr><td class="k">PostgreSQL 17</td><td>container<br>+ volume</td><td>Tenants, sites, devices, device types, alert rules and alerts, calculation rules and state, users, MQTT credentials, and every raw device message.</td><td>Messages are not acknowledged and are redelivered. Device logins are also refused, since broker auth reads the same database.</td></tr>
+      <tr><td class="k">InfluxDB 2</td><td>container<br>+ volume</td><td>The <code>telemetry</code> bucket: normalized readings tagged by tenant, site and device; the source for charts, history and reports.</td><td>Readings are already safe in PostgreSQL. The backfill worker replays them when it returns. Charts lag.</td></tr>
+      <tr><td class="k">Dashboard</td><td>container</td><td>Next.js app: live telemetry, charts, site maps, device management, alerts, role-based navigation.</td><td>No impact on data capture.</td></tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:4mm">
+    <div>
+      <h3>Why ingestion is a separate process</h3>
+      <p style="font-size:9.5pt">Ingestion must keep draining the broker whether or not anyone is using the API, and it must be restartable and scalable on its own schedule. Splitting it costs one thing: real-time events generated there cannot reach the API's in-memory SignalR hub directly.</p>
+      <p style="font-size:9.5pt">Rather than introduce Redis or another backplane for that one hop, the worker publishes events to an internal topic on the broker the platform already runs — <code>bms/realtime/events</code> — and the API subscribes and re-broadcasts them. The same hop carries the retained ingestion status topic and the worker's MQTT last will, which is how the dashboard distinguishes "ingestion is down" from "every device went quiet".</p>
+      <div class="card okx" style="font-size:9pt">
+        <b>Trade-off accepted:</b> that channel is best-effort — it is skipped while the broker is disconnected and its failures are logged and dropped. PostgreSQL and InfluxDB, not the event channel, are the source of truth. A missed event costs UI freshness, never data.
+      </div>
+    </div>
+  </div>
+  <div class="foot">BMS Platform · architecture &amp; production readiness</div>
+</section>
+
+<!-- ============ PAGE 4 ============ -->
+<section class="page">
+  <h2>3 · Technology stack</h2>
+  <div class="grid2">
+    <div>
+      <table>
+        <thead><tr><th colspan="2">Backend — .NET 10 (net10.0)</th></tr></thead>
+        <tbody>
+          <tr><td class="k">ASP.NET Core</td><td>10.0.11 — REST API, JWT bearer auth, Swagger, health checks</td></tr>
+          <tr><td class="k">SignalR</td><td>10 — live telemetry and alerts to browsers</td></tr>
+          <tr><td class="k">MQTTnet</td><td>5.2.0.1603 — MQTT 5 client, manual acknowledgement</td></tr>
+          <tr><td class="k">EF Core + Npgsql</td><td>10.0.11 / 10.0.3 — PostgreSQL access, migrations, retry on failure</td></tr>
+          <tr><td class="k">InfluxDB.Client</td><td>5.1.0 — time-series writes and Flux queries</td></tr>
+          <tr><td class="k">BCrypt.Net-Next</td><td>4.2.0 — password hashing (shared with broker auth)</td></tr>
+          <tr><td class="k">JWT</td><td>8.22.0 — token issuance and validation</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead><tr><th colspan="2">Data</th></tr></thead>
+        <tbody>
+          <tr><td class="k">PostgreSQL</td><td>17-alpine — operational data and raw messages</td></tr>
+          <tr><td class="k">InfluxDB</td><td>2 — bucket <code>telemetry</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <table>
+        <thead><tr><th colspan="2">Frontend</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Next.js</td><td>16.3.4 — App Router, role-based navigation</td></tr>
+          <tr><td class="k">React</td><td>19.2.8 with TypeScript 5</td></tr>
+          <tr><td class="k">Tailwind CSS</td><td>4</td></tr>
+          <tr><td class="k">Recharts</td><td>3.10.1 — telemetry charts</td></tr>
+          <tr><td class="k">Leaflet</td><td>1.9.4 + react-leaflet 5 — site maps</td></tr>
+          <tr><td class="k">@microsoft/signalr</td><td>10.0.11 — live updates</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead><tr><th colspan="2">Messaging &amp; delivery</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Mosquitto</td><td>via <code>iegomez/mosquitto-go-auth</code> — MQTT 3.1.1 / 5, TLS listener on 8883, plain on 1883</td></tr>
+          <tr><td class="k">Auth backend</td><td>Device logins from PostgreSQL, service accounts from file, per-tenant ACL</td></tr>
+          <tr><td class="k">Docker Compose</td><td>6 services, restart policies, health checks, named volumes</td></tr>
+          <tr><td class="k">Tests</td><td>xUnit + Moq — 120+ unit tests, WebApplicationFactory integration tests, plus a bash reliability suite that runs real outages against an isolated stack</td></tr>
+          <tr><td class="k">Metrics</td><td><code>System.Diagnostics.Metrics</code> counters in Bms.Ingestion</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+      <div>
+      <h3 style="margin-top:1mm">Code structure — dependencies point inward <span class="muted" style="font-weight:400">· no business rule references MQTT, EF Core, InfluxDB or Next.js</span></h3>
+      <div class="tight">
+      <table style="font-size:8.5pt">
+        <tr><td class="k">Bms.Domain</td><td>Entities and rules. No dependencies at all.</td></tr>
+        <tr><td class="k">Bms.Application</td><td>Use cases (the ingestion pipeline, normalizer, backfill) and the interfaces every outer project implements.</td></tr>
+        <tr><td class="k">Bms.Infrastructure</td><td>EF Core repositories, InfluxDB store, email / Telegram senders, firmware storage.</td></tr>
+        <tr><td class="k">Bms.Protocols</td><td>MQTT transport and the JSON decoder.</td></tr>
+        <tr><td class="k">Alerting · Calculations · DeviceManagement</td><td>Alert rule evaluation, derived values, device online/offline lifecycle.</td></tr>
+        <tr><td class="k">Bms.Api · Bms.Ingestion</td><td>The two deployable hosts. Composition roots only.</td></tr>
+      </table>
+      </div>
+    </div>
+
+  <div class="foot">BMS Platform · architecture &amp; production readiness</div>
+</section>
+<!-- ============ PAGE 5 ============ -->
+<section class="page">
+  <h2>4 · What the system guarantees, and why</h2>
+  <div class="grid3">
+    <div class="card accent">
+      <h3>PostgreSQL commits before the acknowledgement</h3>
+      <p style="font-size:9pt">The worker uses manual acknowledgement. The raw row commits first; only then is the broker told the message is handled. A message that fails anywhere before that point is never acknowledged, so the broker redelivers it after a retry or a reconnect.</p>
+    </div>
+    <div class="card okx">
+      <h3>InfluxDB is written after the acknowledgement</h3>
+      <p style="font-size:9pt">A failed point write therefore never fails a message. The row stays marked unflushed and the backfill worker replays it — with exponential backoff while InfluxDB is unreachable, and immediately again while a backlog is draining.</p>
+    </div>
+    <div class="card warnx">
+      <h3>Redelivery is safe</h3>
+      <p style="font-size:9pt">A duplicate key is built from what the device itself sent — sequence number and device timestamp — so a redelivered copy produces the same key while a genuinely new reading does not. A unique index on <code>(DeviceId, DedupKey)</code> settles any race the check loses.</p>
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-top:4mm">
+    <div class="card">
+      <h3>A bad message cannot stop the queue</h3>
+      <p style="font-size:9pt">A failure that is about the message itself is recorded as <code>Rejected</code> with the reason and acknowledged, rather than blocking everything behind it. Only infrastructure failures are retried.</p>
+    </div>
+    <div class="card">
+      <h3>Downstream effects are isolated</h3>
+      <p style="font-size:9pt">An InfluxDB outage must not also stop device-status tracking or alert evaluation — arguably more important during an outage than the chart. Each effect catches its own failures. The same applies per notification channel.</p>
+    </div>
+    <div class="card">
+      <h3>Nothing is discarded</h3>
+      <p style="font-size:9pt">Rejected and duplicate messages are kept with their reason. The original bytes are always preserved, which is what makes replay after a decoder fix, and proving what a vendor actually sent, possible.</p>
+    </div>
+  </div>
+
+  <div class="foot">BMS Platform · architecture &amp; production readiness</div>
+</section>
+
+<section class="page">
+  <h2>5 · Behaviour when something is down</h2>
+  <table>
+    <thead><tr><th style="width:17%">Failure</th><th style="width:30%">What happens</th><th style="width:28%">Data outcome</th><th>Bounded by</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Ingestion stopped,<br>crashed or deploying</td><td>Mosquitto keeps the session and its subscriptions and queues every QoS 1 message. The retained last will tells the API the worker is gone.</td><td><b>No loss</b> — the backlog drains in order on reconnect.</td><td>The queue limits and the 24 h session expiry. <span class="pill p2">see action 2</span></td></tr>
+      <tr><td class="k">PostgreSQL down</td><td>Decoding fails before the insert is attempted, so nothing is acknowledged. The worker retries the same message with exponential backoff while the rest queue behind it.</td><td><b>No loss</b> — redelivered copies are absorbed by the dedup index when it returns.</td><td>Broker auth reads the same database, so devices that reconnect during the outage are refused and must buffer themselves. <span class="pill p1">see action 4</span></td></tr>
+      <tr><td class="k">InfluxDB down</td><td>The message is already committed and acknowledged. The point write fails in isolation and the row is marked unflushed.</td><td><b>No loss</b> — the backfill worker replays it.</td><td>Charts and reports lag until the replay completes.</td></tr>
+      <tr><td class="k">Mosquitto crashed<br>or killed</td><td>Queue restored from the last autosave on restart.</td><td>Up to <b>60 seconds</b> of queued messages can be lost.</td><td><code>autosave_interval</code>, currently 60 s.</td></tr>
+      <tr><td class="k">Broker unreachable<br>from the device</td><td>The device cannot publish at all.</td><td><b>Loss is possible</b> — it depends entirely on whether the device buffers.</td><td>Device firmware. The only hop the platform cannot cover.</td></tr>
+      <tr><td class="k">API down</td><td>Dashboard goes dark; capture and alerting continue.</td><td><b>No loss.</b></td><td>Notification channels are driven by ingestion, not the API, so alerts still go out.</td></tr>
+    </tbody>
+  </table>
+  <h3 style="margin-top:4mm">MQTT configuration in force</h3>
+  <table style="font-size:8.5pt">
+    <tr>
+      <td class="k">Protocol</td><td>MQTT 5</td>
+      <td class="k">Clean start</td><td><code>false</code> (session resumed)</td>
+      <td class="k">Session expiry</td><td>86,400 s (24 h)</td>
+      <td class="k">Receive maximum</td><td>100 in flight</td>
+    </tr>
+    <tr>
+      <td class="k">Telemetry QoS</td><td>1 (at least once)</td>
+      <td class="k">Queue limit</td><td>100,000 msgs / 100 MiB</td>
+      <td class="k">Autosave</td><td>60 s</td>
+      <td class="k">Last will</td><td>retained, on the status topic</td>
+    </tr>
+  </table>
+  <div class="foot">BMS Platform · architecture &amp; production readiness</div>
+</section>
+
+<!-- ============ PAGE 6 ============ -->
+<section class="page">
+  <h2>6 · Decisions taken, and the conditions to revisit them</h2>
+  <p class="muted" style="max-width:200mm">Each of these was a deliberate choice to not add infrastructure. None is permanent; each has a stated trigger. The point of writing them down is so the next person does not re-litigate them from scratch, and does not adopt them out of habit either.</p>
+
+  <table style="margin-top:3mm">
+    <thead><tr><th style="width:13%">Not used</th><th style="width:29%">What it would solve</th><th style="width:29%">Why it is not needed here</th><th>Adopt it when</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="k">Kafka</td>
+        <td>A durable, replayable log with many independent consumers, partitioned for horizontal scale.</td>
+        <td>Devices speak MQTT only, so Kafka could not replace Mosquitto — it would be added behind it, as a second broker and an extra hop. The durable log already exists as the raw message table, and the backfill worker already replays from it. There is exactly one consumer today. A single-broker Kafka on one host also runs at replication factor 1, which is weaker than the PostgreSQL commit the system currently trusts.</td>
+        <td>Two or more of: one ingestion process provably cannot keep up in normal operation; three or more jobs are scanning the raw table on their own schedules; reprocessing days of raw data across the fleet is too slow in PostgreSQL; the required buffer is hours rather than minutes; an external party needs a live feed. And someone owns operating it.</td>
+      </tr>
+      <tr>
+        <td class="k">Redis or another backplane</td>
+        <td>Pub/sub between the ingestion process and the API's SignalR hub.</td>
+        <td>One internal MQTT topic on the broker already running does the same job with no new service, no new port and no new failure mode.</td>
+        <td>The event volume or the delivery guarantees outgrow a best-effort channel — for example if a missed UI event ever becomes a correctness problem rather than a freshness one.</td>
+      </tr>
+      <tr>
+        <td class="k">Kubernetes</td>
+        <td>Multi-node orchestration for independently scaled services.</td>
+        <td>Six containers on one host with restart policies and health checks. There is no fleet to orchestrate.</td>
+        <td>Multiple nodes, independent scaling per service, or zero-downtime rolling deploys become a requirement.</td>
+      </tr>
+      <tr>
+        <td class="k">Microservices</td>
+        <td>Independent deployability and scaling boundaries.</td>
+        <td>The boundaries that matter — transport, protocol, payload format, mapping, domain versus time-series storage — are already enforced in-process by Clean Architecture. Splitting them over the network would add latency and distributed failure modes for no benefit at this size.</td>
+        <td>A specific boundary genuinely needs to scale or ship separately. Ingestion was split out for exactly that reason and is the precedent to follow.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="foot">BMS Platform · architecture &amp; production readiness</div>
+</section>
+<!-- ============ PAGE 7 ============ -->
+<section class="page">
+  <h2>7 · What we still need before production</h2>
+  <p class="muted" style="max-width:205mm">The architecture is sound and the failure behaviour is tested. What follows is not redesign work — it is the operational gap between "it works on the stack" and "it runs unattended with real devices and real money on it". Items marked <span class="pill p1">must</span> should block go-live.</p>
+
+  <div class="card accent" style="margin:3mm 0">
+    <b>The cheaper moves to try before any of the above.</b> In order: batch the InfluxDB writes instead of one point per message; enable MQTT 5 shared subscriptions and run two or three ingestion instances; time-partition the raw message table; then re-measure. Each is days of work rather than a new platform to operate, and together they move the ceiling a long way.
+  </div>
+  <table>
+    <thead><tr><th style="width:5%"></th><th style="width:21%">Item</th><th style="width:38%">Why it matters</th><th>What done looks like</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="pill p1">must</span></td>
+        <td class="k">Raw message retention</td>
+        <td>There is no retention or cleanup worker in the codebase today. <code>RawDeviceMessages</code> stores the full payload of every message forever. At the target device count this fills the disk, and a full disk stops the acknowledgement path — which is the one thing that must never stop.</td>
+        <td>An agreed retention window, a worker that enforces it, and the table time-partitioned so deletes are a partition drop rather than a mass delete.</td>
+      </tr>
+      <tr>
+        <td><span class="pill p1">must</span></td>
+        <td class="k">Size the broker queue against real numbers</td>
+        <td>The current limits are 100,000 messages / 100 MiB. At 10,000 devices reporting once a minute that is roughly <b>10 minutes</b> of outage cover; at once every 10 seconds it is roughly <b>60 seconds</b>. Beyond the limit Mosquitto drops silently. The 24-hour session expiry is not the real bound — the queue is.</td>
+        <td>The sizing formula in <code>docs/mqtt/reliability.md</code> applied to the real device count and interval, the limits set accordingly, and the volume sized for the bytes.</td>
+      </tr>
+      <tr>
+        <td><span class="pill p1">must</span></td>
+        <td class="k">Real secrets and real certificates</td>
+        <td><code>.env.example</code> ships <code>change-me</code> placeholders for the database, InfluxDB token and all MQTT accounts. The TLS listener needs a certificate that devices will actually trust.</td>
+        <td>Generated credentials held in a secret store with a rotation plan, a real CA and server certificate on 8883, and anonymous access confirmed off.</td>
+      </tr>
+      <tr>
+        <td><span class="pill p1">must</span></td>
+        <td class="k">Decide the PostgreSQL coupling posture</td>
+        <td>PostgreSQL is both the acknowledgement boundary and the broker's device-authentication backend. During a PostgreSQL outage, devices that try to reconnect are <b>refused</b>, so an outage does not only pause processing — it can push devices off the broker entirely.</td>
+        <td>A conscious decision: cache authentication lookups, use a read replica for auth, or accept it and tell device vendors what buffering they must do. Any of the three is fine. Not knowing is not.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="foot">BMS Platform · architecture &amp; production readiness</div>
+</section>
+
+<section class="page">
+  <h2>7 · What we still need before production <span class="muted" style="font-weight:400; font-size:10pt">· continued</span></h2>
+  <table>
+    <thead><tr><th style="width:5%"></th><th style="width:21%">Item</th><th style="width:38%">Why it matters</th><th>What done looks like</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="pill p1">must</span></td>
+        <td class="k">Backups and a restore drill</td>
+        <td>Three stateful volumes — <code>pgdata</code>, <code>influxdata</code>, <code>mosquitto-data</code>. A backup that has never been restored is not a backup.</td>
+        <td>Scheduled backups for both databases, off-host, plus one rehearsed restore with the time it took written down.</td>
+      </tr>
+      <tr>
+        <td><span class="pill p1">must</span></td>
+        <td class="k">Monitoring and alerting</td>
+        <td>The counters already exist — processing latency, messages persisted / rejected / duplicate, transient failures, time-series write failures — but nothing watches them. Without that, an outage lasts until a user complains.</td>
+        <td>Those metrics plus broker queue depth and the ingestion status topic on a dashboard, with alerts on queue depth rising, rejection rate and the worker going offline.</td>
+      </tr>
+      <tr>
+        <td><span class="pill p2">scale</span></td>
+        <td class="k">Shared subscriptions for more than one ingestion instance</td>
+        <td>Ingestion runs under a single client id with a persistent session, so a second instance cannot be added — it would fight for the same session. This is a hard ceiling, and it is the first one you will hit.</td>
+        <td>MQTT 5 shared subscriptions (<code>$share/...</code>) proven on the stack, so scaling out is a configuration change rather than a redesign under pressure.</td>
+      </tr>
+      <tr>
+        <td><span class="pill p2">scale</span></td>
+        <td class="k">Batch the InfluxDB writes</td>
+        <td>One point write per message is the simplest thing that works and the first thing to become a bottleneck.</td>
+        <td>Buffered writes with a size and time trigger, with the unflushed marking still correct so backfill keeps working.</td>
+      </tr>
+      <tr>
+        <td><span class="pill p2">scale</span></td>
+        <td class="k">Load test at the target device count</td>
+        <td>Every number in this document about capacity is an estimate. One test replaces all of them with facts, and sizes items 2, 7 and 8 properly.</td>
+        <td>A simulated run at the real device count and interval, with processing latency and queue depth recorded.</td>
+      </tr>
+      <tr>
+        <td><span class="pill p3">tidy</span></td>
+        <td class="k">One code comment contradicts the code</td>
+        <td><code>MqttRealtimeNotifier</code> documents the bridge as QoS 0, but it publishes through an adapter that hardcodes QoS 1. Harmless today; misleading to whoever reads it next.</td>
+        <td>Either correct the comment or make the publish QoS a parameter, depending on which behaviour was intended.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="foot">BMS Platform · architecture &amp; production readiness</div>
+</section>
+
+<!-- ============ PAGE 8 ============ -->
+<section class="page">
+  <h2>Appendix · reference</h2>
+  <div class="grid2">
+    <div>
+      <h3>MQTT topics in use</h3>
+      <table style="font-size:8.5pt">
+        <thead><tr><th>Topic</th><th>Direction</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="k">iot/{tenant}/{site}/{device}/telemetry</td><td>device → platform</td><td>Readings, QoS 1</td></tr>
+          <tr><td class="k">iot/{tenant}/{site}/{device}/heartbeat</td><td>device → platform</td><td>Liveness</td></tr>
+          <tr><td class="k">iot/{tenant}/{site}/{device}/commands/ack</td><td>device → platform</td><td>Command acknowledgement</td></tr>
+          <tr><td class="k">iot/{tenant}/{site}/{device}/commands</td><td>platform → device</td><td>Downlink commands</td></tr>
+          <tr><td class="k">iot/{tenant}/{site}/{device}/config</td><td>platform → device</td><td>Configuration push</td></tr>
+          <tr><td class="k">iot/{tenant}/{site}/{device}/firmware</td><td>platform → device</td><td>OTA deployment</td></tr>
+          <tr><td class="k">bms/realtime/events</td><td>ingestion → API</td><td>Internal bridge to SignalR</td></tr>
+          <tr><td class="k">bms/ingestion/{id}/status</td><td>ingestion → API</td><td>Retained liveness + last will</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:9pt" class="muted">Access is enforced per account in the broker ACL: devices are confined to their own tenant subtree by pattern, the ingestion account reads all of <code>iot/#</code>, and the API account may only read events and status and write the three downlink topics.</p>
+    </div>
+    <div>
+      <h3>Where things live</h3>
+      <table style="font-size:8.5pt">
+        <tr><td class="k">src/backend/</td><td>Nine .NET projects; two of them are deployable hosts</td></tr>
+        <tr><td class="k">src/frontend/bms-dashboard/</td><td>Next.js dashboard</td></tr>
+        <tr><td class="k">infrastructure/mosquitto/</td><td>Broker config template, ACL, entrypoint</td></tr>
+        <tr><td class="k">infrastructure/docker/</td><td>API and ingestion Dockerfiles</td></tr>
+        <tr><td class="k">tests/</td><td>Unit, integration, and a bash reliability suite that runs real outages</td></tr>
+        <tr><td class="k">docs/architecture/</td><td>System architecture, data flow, and the interactive diagram</td></tr>
+        <tr><td class="k">docs/mqtt/</td><td>QoS and reliability, including the queue sizing formula</td></tr>
+        <tr><td class="k">docs/deployment/</td><td>Docker and deployment notes</td></tr>
+      </table>
+
+      <h3 style="margin-top:4mm">Reading this further</h3>
+      <ul style="font-size:9.5pt">
+        <li><code>docs/architecture/BMS Live Architecture.html</code> — the diagram on page 2, animated, with the four failure scenarios playable.</li>
+        <li><code>docs/mqtt/reliability.md</code> — the queue sizing formula and the full failure matrix.</li>
+        <li><code>docs/architecture/system-architecture.md</code> — the longer form of section 6.</li>
+      </ul>
+
+      <div class="card warnx" style="margin-top:3mm">
+        <b>One sentence to take away.</b> The platform's reliability rests on a single ordering rule — commit the raw bytes to PostgreSQL, then acknowledge the broker, then do everything else. Every guarantee in section 4 follows from it, and any change to the ingestion pipeline should be checked against it first.
+      </div>
+    </div>
+  </div>
+  <div class="foot">BMS Platform · architecture &amp; production readiness</div>
+</section>
+</body>
+</html>

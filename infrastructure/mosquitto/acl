@@ -1,0 +1,53 @@
+# Mosquitto ACL — restricts what each authenticated credential (see
+# passwd.example) can publish/subscribe to. Contains no secrets (just
+# usernames and topic patterns), unlike passwd, so this file is committed
+# directly rather than generated from a .example template.
+#
+# Tenant isolation: device-facing credentials are one per tenant (username
+# == tenant slug, e.g. "whirlpool"), and the `pattern` rule below expands
+# %u to the connecting username — so a device authenticated as "whirlpool"
+# can only touch topics under iot/whirlpool/#, never
+# iot/abc-manufacturing/# or any other tenant's namespace, even if it
+# knows another tenant's exact site/device codes. This stops
+# cross-tenant spoofing.
+#
+# What this does NOT do: stop one device from impersonating another
+# device in the SAME tenant — that needs true per-device credentials,
+# which static password-file auth can't provision dynamically as devices
+# are added/removed. That's a real follow-up (a dynamic auth backend, e.g.
+# mosquitto-go-auth backed by the Devices table) — see
+# docs/mqtt/reliability.md.
+
+# Bms.Ingestion: the backend worker that receives every tenant's
+# telemetry/heartbeat/status/events/commands-ack, and publishes outbound
+# commands/config/firmware to any device — legitimately needs the whole
+# iot/# namespace, not just one tenant's.
+user bms-ingestion
+topic readwrite iot/#
+topic readwrite bms/realtime/events
+# Its own retained liveness status (heartbeat + Last Will).
+topic write bms/ingestion/bms-ingestion/status
+
+# Bms.Api: relays the internal realtime-bridge topic into SignalR (read),
+# and publishes outbound commands/config/firmware pushes to devices —
+# MqttDeviceCommandDispatcher (used by the Commands, Configuration, and
+# Firmware tabs) shares this same connection. Never reads device topics
+# directly or handles telemetry ingestion — that's bms-ingestion's job.
+user bms-api-realtime-bridge
+topic read bms/realtime/events
+# Ingestion liveness — pauses device-offline checks while ingestion is down.
+topic read bms/ingestion/+/status
+topic write iot/+/+/+/commands
+topic write iot/+/+/+/config
+topic write iot/+/+/+/firmware
+
+# Connector Service: publishes readings translated from devices that send
+# their own format (raw TCP etc.), for any company — so it may WRITE device
+# telemetry topics everywhere, and nothing else: it reads no topic and can't
+# send commands.
+user bms-connectors
+topic write iot/+/+/+/telemetry
+
+# Per-tenant device credentials (see passwd.example for how these are
+# created) — %u is substituted with the connecting username.
+pattern readwrite iot/%u/+/+/#

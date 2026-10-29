@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BMS Platform Architecture</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+  /* Layout: one reading column; the animated diagram breaks out wider and scrolls sideways on phones. */
+  :root {
+    --bg: #f5f7f8;
+    --surface: #ffffff;
+    --surface-2: #eef2f4;
+    --ink: #16212a;
+    --muted: #5a6b78;
+    --line: #d9e1e6;
+    --line-strong: #b6c4cc;
+    --raw: #0f7d84;        /* data in motion, healthy */
+    --raw-soft: #dff1f1;
+    --derived: #6a4bd6;    /* acknowledgements, derived work */
+    --derived-soft: #ece7fb;
+    --warn: #a85a10;
+    --warn-soft: #fbeedd;
+    --bad: #b2342a;
+    --bad-soft: #fbe4e1;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --cond: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1317; --surface: #141d23; --surface-2: #1b262d; --ink: #e4edf2; --muted: #8fa3b0;
+      --line: #23323b; --line-strong: #3a4f5a; --raw: #3cc4c9; --raw-soft: #10363a; --derived: #a58cff;
+      --derived-soft: #2a2350; --warn: #e2963f; --warn-soft: #3a2a14; --bad: #ef8b80; --bad-soft: #3d1d1a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1317; --surface: #141d23; --surface-2: #1b262d; --ink: #e4edf2; --muted: #8fa3b0;
+    --line: #23323b; --line-strong: #3a4f5a; --raw: #3cc4c9; --raw-soft: #10363a; --derived: #a58cff;
+    --derived-soft: #2a2350; --warn: #e2963f; --warn-soft: #3a2a14; --bad: #ef8b80; --bad-soft: #3d1d1a;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 var(--sans); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; display: grid; gap: 56px; }
+  .prose { max-width: 70ch; }
+  h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2; }
+  h1 { font-size: clamp(28px, 4vw, 40px); font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 24px; font-weight: 600; }
+  h3 { font-size: 16px; font-weight: 600; }
+  p { margin: 0; }
+  code, .mono { font-family: var(--mono); font-size: 0.88em; }
+  code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  .eyebrow { font: 600 12px/1 var(--cond); letter-spacing: 0.12em; text-transform: uppercase; color: var(--raw); }
+  .muted { color: var(--muted); }
+  section { display: grid; gap: 20px; }
+  .section-head { display: grid; gap: 8px; }
+
+  /* ---------- header ---------- */
+  header { display: grid; gap: 14px; }
+  .lede { font-size: 17px; color: var(--muted); max-width: 66ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .fact { font: 500 12.5px/1 var(--mono); padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); }
+  .fact b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- player ---------- */
+  .player { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; display: grid; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 14px 14px 0; }
+  .tab { font: 500 13px/1 var(--sans); padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); cursor: pointer; }
+  .tab[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .tab:focus-visible, .btn:focus-visible { outline: 2px solid var(--raw); outline-offset: 2px; }
+  .stage { overflow-x: auto; padding: 8px 6px 0; }
+  svg.diagram { display: block; width: 100%; min-width: 860px; height: auto; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .btn { font: 500 13px/1 var(--sans); padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer; }
+  .btn.primary { background: var(--raw); border-color: var(--raw); color: var(--surface); }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .counter { font: 500 12.5px/1 var(--mono); color: var(--muted); margin-left: auto; }
+  .narration { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 320px); gap: 0; border-top: 1px solid var(--line); }
+  .now { padding: 18px 20px; display: grid; gap: 8px; align-content: start; min-height: 150px; }
+  .now h3 { font-size: 18px; }
+  .now p { color: var(--ink); max-width: 64ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font: 500 12px/1 var(--mono); padding: 6px 8px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
+  .chip.ok { background: var(--raw-soft); color: var(--raw); }
+  .chip.ack { background: var(--derived-soft); color: var(--derived); }
+  .chip.bad { background: var(--bad-soft); color: var(--bad); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  ol.steps { margin: 0; padding: 14px 18px 14px 36px; border-left: 1px solid var(--line); font-size: 13.5px; color: var(--muted); display: grid; gap: 6px; align-content: start; }
+  ol.steps li { cursor: pointer; }
+  ol.steps li.done { color: var(--ink); }
+  ol.steps li.current { color: var(--raw); font-weight: 600; }
+
+  /* svg parts */
+  .node rect.box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; transition: stroke 0.25s, fill 0.25s; }
+  .node text { fill: var(--ink); font-family: var(--sans); }
+  .node .t1 { font-size: 15px; font-weight: 600; }
+  .node .t2 { font-size: 11.5px; fill: var(--muted); font-family: var(--mono); }
+  .node .badge { font: 600 10px var(--mono); letter-spacing: 0.08em; fill: var(--bad); opacity: 0; }
+  .node.focus rect.box { stroke: var(--raw); stroke-width: 2.5; fill: var(--raw-soft); }
+  .node.down rect.box { stroke: var(--bad); stroke-dasharray: 5 4; fill: var(--bad-soft); }
+  .node.down .badge { opacity: 1; }
+  .node.down .t1, .node.down .t2 { opacity: 0.55; }
+  .node.warn rect.box { stroke: var(--warn); fill: var(--warn-soft); }
+  .edge { fill: none; stroke: var(--line-strong); stroke-width: 1.6; transition: stroke 0.25s; }
+  .edge.dashed { stroke-dasharray: 5 5; }
+  .edge.active { stroke: var(--raw); stroke-width: 2.4; }
+  .edge.active.ackline { stroke: var(--derived); }
+  .edge-label { font: 500 10.5px var(--mono); fill: var(--muted); }
+  .arrowhead { fill: var(--line-strong); }
+  .slot { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 1; transition: fill 0.25s; }
+  .slot.on { fill: var(--warn); stroke: var(--warn); }
+  .qlabel { font: 500 10.5px var(--mono); fill: var(--muted); }
+  .packet { fill: var(--raw); }
+  .packet.ack { fill: var(--derived); }
+  .packet.bad { fill: var(--bad); }
+  .zone { fill: none; stroke: var(--line); stroke-dasharray: 3 5; }
+  .zone-label { font: 600 10px var(--cond); letter-spacing: 0.12em; fill: var(--muted); text-transform: uppercase; }
+
+  /* ---------- stack ---------- */
+  .stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .layer { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+  .layer h3 { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .layer h3 span { font: 500 11px var(--mono); color: var(--muted); }
+  .layer ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+  .layer li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: 14px; }
+  .layer li small { font: 12px var(--mono); color: var(--muted); white-space: nowrap; }
+  .layer li em { grid-column: 1 / -1; font-style: normal; font-size: 12.5px; color: var(--muted); margin-top: -4px; }
+
+  /* ---------- layers (clean architecture) ---------- */
+  .onion { display: grid; gap: 8px; }
+  .ring { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--surface); display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 14px; align-items: baseline; }
+  .ring .name { font: 600 13px var(--mono); }
+  .ring p { font-size: 14px; color: var(--muted); }
+  .ring.core { background: var(--raw-soft); border-color: var(--raw); }
+  .ring.core .name { color: var(--raw); }
+
+  /* ---------- tables ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 620px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 600 11.5px var(--cond); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); }
+  tr:last-child td { border-bottom: 0; }
+  td.k { font-weight: 600; white-space: nowrap; }
+
+  /* ---------- rules ---------- */
+  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .rule { border-left: 3px solid var(--raw); background: var(--surface); padding: 14px 16px; border-radius: 0 10px 10px 0; display: grid; gap: 6px; }
+  .rule p { font-size: 14px; color: var(--muted); }
+  .rule.ack { border-left-color: var(--derived); }
+  .rule.warn { border-left-color: var(--warn); }
+
+  /* ---------- aws ---------- */
+  .aws { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .tier { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 14px; display: grid; gap: 6px; align-content: start; }
+  .tier .what { font: 600 11px var(--cond); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .tier p { font-size: 13.5px; color: var(--muted); }
+  .tier.vm { border-color: var(--warn); }
+  .tier.vm .what { color: var(--warn); }
+
+  footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 18px; }
+
+  @media (max-width: 760px) {
+    .narration { grid-template-columns: 1fr; }
+    ol.steps { border-left: 0; border-top: 1px solid var(--line); }
+    .ring { grid-template-columns: 1fr; gap: 4px; }
+    .counter { margin-left: 0; width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="eyebrow">Technical overview · BMS Industrial IoT Platform</span>
+    <h1>BMS Platform Architecture</h1>
+    <p class="lede">How a reading travels from a field device to the dashboard: the services it passes through, where it is stored, and what happens when any part of the system is down.</p>
+    <div class="facts">
+      <span class="fact"><b>.NET 10</b> backend</span>
+      <span class="fact"><b>MQTT 5</b> · Mosquitto 2.0</span>
+      <span class="fact"><b>PostgreSQL</b> operational + raw</span>
+      <span class="fact"><b>InfluxDB 2</b> time series</span>
+      <span class="fact"><b>Next.js 16</b> dashboard</span>
+      <span class="fact"><b>Docker</b> Compose · AWS target</span>
+    </div>
+  </header>
+
+  <!-- ===================== ANIMATED FLOW ===================== -->
+  <section aria-labelledby="flow-h">
+    <div class="section-head">
+      <span class="eyebrow">1 · The flow</span>
+      <h2 id="flow-h">Follow one message through the system</h2>
+      <p class="prose muted">Pick a scenario and press Play, or step through it. Teal dots are telemetry, violet dots are acknowledgements back to the broker, red marks a failure.</p>
+    </div>
+
+    <div class="player">
+      <div class="tabs" role="tablist" aria-label="Scenarios" id="tabs"></div>
+
+      <div class="stage">
+        <svg class="diagram" id="diagram" viewBox="0 0 1080 540" role="img" aria-label="Architecture diagram: devices, Mosquitto, ingestion, PostgreSQL, InfluxDB, calculations and alerts, notifications, backfill worker, API and dashboard">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="arrowhead" d="M0,0 L10,5 L0,10 z"/>
+            </marker>
+          </defs>
+
+          <!-- zones -->
+          <rect class="zone" x="14" y="200" width="372" height="190" rx="12"/>
+          <text class="zone-label" x="26" y="220">Edge &amp; messaging</text>
+          <rect class="zone" x="416" y="36" width="440" height="488" rx="12"/>
+          <text class="zone-label" x="428" y="56">Ingestion &amp; storage</text>
+          <rect class="zone" x="884" y="36" width="182" height="488" rx="12"/>
+          <text class="zone-label" x="896" y="56">Apps &amp; users</text>
+
+          <!-- edges -->
+          <path id="e-pub" class="edge" d="M170,280 L220,280" marker-end="url(#arrow)"/>
+          <path id="e-deliver" class="edge" d="M370,268 L430,268" marker-end="url(#arrow)"/>
+          <path id="e-ack" class="edge dashed ackline" d="M430,300 L370,300" marker-end="url(#arrow)"/>
+          <text class="edge-label" x="381" y="316">ACK</text>
+          <path id="e-persist" class="edge" d="M590,255 C628,255 622,100 660,100" marker-end="url(#arrow)"/>
+          <path id="e-process" class="edge" d="M590,280 L660,280" marker-end="url(#arrow)"/>
+          <path id="e-procdb" class="edge" d="M745,240 L745,140" marker-end="url(#arrow)"/>
+          <text class="edge-label" x="752" y="196">status · calc · alerts</text>
+          <path id="e-influx" class="edge" d="M590,305 C628,305 622,445 660,445" marker-end="url(#arrow)"/>
+          <path id="e-notify" class="edge" d="M830,262 C866,262 864,100 900,100" marker-end="url(#arrow)"/>
+          <path id="e-realtime" class="edge" d="M830,292 L900,292" marker-end="url(#arrow)"/>
+          <path id="e-push" class="edge" d="M975,320 L975,420" marker-end="url(#arrow)"/>
+          <path id="e-charts" class="edge dashed" d="M930,320 C910,400 870,470 830,470" marker-end="url(#arrow)"/>
+          <path id="e-bfread" class="edge dashed" d="M660,125 C604,125 612,452 590,452" marker-end="url(#arrow)"/>
+          <path id="e-bfwrite" class="edge dashed" d="M590,478 L660,478" marker-end="url(#arrow)"/>
+
+          <!-- nodes -->
+          <g class="node" id="n-dev" transform="translate(30,240)">
+            <rect class="box" width="140" height="80" rx="10"/>
+            <text class="t1" x="14" y="34">Devices</text>
+            <text class="t2" x="14" y="56">MQTT QoS 1 · gateway</text>
+            <text class="badge" x="96" y="18">DOWN</text>
+          </g>
+          <g class="node" id="n-mq" transform="translate(220,240)">
+            <rect class="box" width="150" height="80" rx="10"/>
+            <text class="t1" x="14" y="34">Mosquitto</text>
+            <text class="t2" x="14" y="56">persistent session</text>
+            <text class="badge" x="106" y="18">DOWN</text>
+          </g>
+          <g class="node" id="n-ing" transform="translate(430,240)">
+            <rect class="box" width="160" height="80" rx="10"/>
+            <text class="t1" x="14" y="34">Ingestion</text>
+            <text class="t2" x="14" y="56">.NET 10 worker</text>
+            <text class="badge" x="116" y="18">DOWN</text>
+          </g>
+          <g class="node" id="n-pg" transform="translate(660,60)">
+            <rect class="box" width="170" height="80" rx="10"/>
+            <text class="t1" x="14" y="34">PostgreSQL</text>
+            <text class="t2" x="14" y="56">RawDeviceMessages</text>
+            <text class="badge" x="126" y="18">DOWN</text>
+          </g>
+          <g class="node" id="n-proc" transform="translate(660,240)">
+            <rect class="box" width="170" height="80" rx="10"/>
+            <text class="t1" x="14" y="34">Calc · alerts</text>
+            <text class="t2" x="14" y="56">lifecycle · rules</text>
+            <text class="badge" x="126" y="18">DOWN</text>
+          </g>
+          <g class="node" id="n-inf" transform="translate(660,420)">
+            <rect class="box" width="170" height="80" rx="10"/>
+            <text class="t1" x="14" y="34">InfluxDB</text>
+            <text class="t2" x="14" y="56">bucket "telemetry"</text>
+            <text class="badge" x="126" y="18">DOWN</text>
+          </g>
+          <g class="node" id="n-bf" transform="translate(430,420)">
+            <rect class="box" width="160" height="80" rx="10"/>
+            <text class="t1" x="14" y="34">Backfill worker</text>
+            <text class="t2" x="14" y="56">PostgreSQL → Influx</text>
+            <text class="badge" x="116" y="18">DOWN</text>
+          </g>
+          <g class="node" id="n-notif" transform="translate(900,60)">
+            <rect class="box" width="150" height="80" rx="10"/>
+            <text class="t1" x="14" y="34">Notifications</text>
+            <text class="t2" x="14" y="56">email·Telegram</text>
+            <text class="badge" x="106" y="18">DOWN</text>
+          </g>
+          <g class="node" id="n-api" transform="translate(900,240)">
+            <rect class="box" width="150" height="80" rx="10"/>
+            <text class="t1" x="14" y="34">API</text>
+            <text class="t2" x="14" y="56">REST · SignalR</text>
+            <text class="badge" x="106" y="18">DOWN</text>
+          </g>
+          <g class="node" id="n-web" transform="translate(900,420)">
+            <rect class="box" width="150" height="80" rx="10"/>
+            <text class="t1" x="14" y="34">Dashboard</text>
+            <text class="t2" x="14" y="56">Next.js · browser</text>
+            <text class="badge" x="106" y="18">DOWN</text>
+          </g>
+
+          <!-- broker queue for the bms-ingestion session -->
+          <g id="queue">
+            <text class="qlabel" x="228" y="344">queue · bms-ingestion</text>
+            <rect class="slot" x="228" y="352" width="18" height="14" rx="3"/>
+            <rect class="slot" x="251" y="352" width="18" height="14" rx="3"/>
+            <rect class="slot" x="274" y="352" width="18" height="14" rx="3"/>
+            <rect class="slot" x="297" y="352" width="18" height="14" rx="3"/>
+            <rect class="slot" x="320" y="352" width="18" height="14" rx="3"/>
+            <rect class="slot" x="343" y="352" width="18" height="14" rx="3"/>
+          </g>
+
+          <circle id="packet" class="packet" r="7" cx="-20" cy="-20"/>
+        </svg>
+      </div>
+
+      <div class="controls">
+        <button class="btn primary" id="play" type="button">Play</button>
+        <button class="btn" id="prev" type="button">Back</button>
+        <button class="btn" id="next" type="button">Next step</button>
+        <button class="btn" id="reset" type="button">Restart</button>
+        <span class="counter" id="counter" aria-live="polite"></span>
+      </div>
+
+      <div class="narration">
+        <div class="now" aria-live="polite">
+          <h3 id="now-title"></h3>
+          <p id="now-text"></p>
+          <div class="chips" id="now-chips"></div>
+        </div>
+        <ol class="steps" id="steps"></ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TECH STACK ===================== -->
+  <section aria-labelledby="stack-h">
+    <div class="section-head">
+      <span class="eyebrow">2 · Tech stack</span>
+      <h2 id="stack-h">What each part is built with</h2>
+      <p class="prose muted">Versions are the ones pinned in the repository today.</p>
+    </div>
+    <div class="stack">
+      <div class="layer">
+        <h3>Devices &amp; edge <span>field</span></h3>
+        <ul>
+          <li>Our gateway <small>MQTT QoS 1</small><em>Reads each device natively (Modbus, BACnet, ...) and publishes JSON keyed by BMS parameter keys to iot/{tenant}/{site}/{device}/telemetry</em></li>
+          <li>Simulators <small>.NET · Python</small><em>MQTTnet device simulator, paho publisher</em></li>
+        </ul>
+      </div>
+      <div class="layer">
+        <h3>Messaging <span>broker</span></h3>
+        <ul>
+          <li>Eclipse Mosquitto <small>2.0.15</small><em>MQTT 3.1.1 / 5, TLS listener on 8883</em></li>
+          <li>mosquitto-go-auth <small>plugin</small><em>Device logins from PostgreSQL, service accounts from file, ACL per tenant</em></li>
+          <li>Persistence <small>mosquitto.db</small><em>Queued messages saved every 60 s and on shutdown</em></li>
+        </ul>
+      </div>
+      <div class="layer">
+        <h3>Backend <span>.NET 10</span></h3>
+        <ul>
+          <li>ASP.NET Core <small>10</small><em>REST API, JWT auth, Swagger, health checks</em></li>
+          <li>SignalR <small>10</small><em>Live telemetry and alerts to browsers</em></li>
+          <li>MQTTnet <small>5.2</small><em>Broker client, manual acknowledgements</em></li>
+          <li>EF Core + Npgsql <small>10</small><em>PostgreSQL access, migrations, retry on failure</em></li>
+          <li>InfluxDB.Client <small>5.1</small><em>Time-series writes and Flux queries</em></li>
+          <li>BCrypt.Net, JWT <small>auth</small><em>Password and token handling</em></li>
+        </ul>
+      </div>
+      <div class="layer">
+        <h3>Data stores <span>2 databases</span></h3>
+        <ul>
+          <li>PostgreSQL <small>17</small><em>Tenants, sites, devices, mappings, rules, alerts, users, raw messages</em></li>
+          <li>InfluxDB <small>2</small><em>Normalized readings for charts, history and calculations</em></li>
+        </ul>
+      </div>
+      <div class="layer">
+        <h3>Frontend <span>dashboard</span></h3>
+        <ul>
+          <li>Next.js <small>16.3</small><em>App Router, role-based navigation</em></li>
+          <li>React <small>19.2</small><em>TypeScript 5</em></li>
+          <li>Tailwind CSS <small>4</small><em>Styling</em></li>
+          <li>Recharts <small>3</small><em>Telemetry charts</em></li>
+          <li>Leaflet · react-leaflet <small>5</small><em>Site maps</em></li>
+          <li>@microsoft/signalr <small>10</small><em>Live updates</em></li>
+        </ul>
+      </div>
+      <div class="layer">
+        <h3>Delivery &amp; quality <span>ops</span></h3>
+        <ul>
+          <li>Docker Compose <small>6 services</small><em>Restart policies, healthchecks, named volumes</em></li>
+          <li>xUnit + Moq <small>unit · integration</small><em>125 unit tests, WebApplicationFactory integration tests</em></li>
+          <li>Reliability suite <small>bash</small><em>tests/reliability: real outages against an isolated stack</em></li>
+          <li>Metrics <small>Bms.Ingestion meter</small><em>System.Diagnostics.Metrics counters</em></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CODE STRUCTURE ===================== -->
+  <section aria-labelledby="code-h">
+    <div class="section-head">
+      <span class="eyebrow">3 · Code structure</span>
+      <h2 id="code-h">Clean Architecture: dependencies point inward</h2>
+      <p class="prose muted">Business rules never reference MQTT, EF Core, InfluxDB or Next.js. Those are details that plug into the core, so a broker or database can be swapped without touching a rule.</p>
+    </div>
+    <div class="onion">
+      <div class="ring"><span class="name">Bms.Api</span><p>Composition root. REST controllers, SignalR hub, real-time bridge, offline and timeout sweeps. Wires everything together.</p></div>
+      <div class="ring"><span class="name">Bms.Ingestion</span><p>Separate host process: MQTT worker, InfluxDB backfill worker, liveness status publisher.</p></div>
+      <div class="ring"><span class="name">Bms.Protocols</span><p>MQTT transport and the JSON decoder — the gateway sends BMS parameter keys, so there is no per-vendor mapping.</p></div>
+      <div class="ring"><span class="name">Bms.Alerting · Bms.Calculations · Bms.DeviceManagement</span><p>Alert rule evaluation, derived values such as energy consumption, device online/offline lifecycle.</p></div>
+      <div class="ring"><span class="name">Bms.Infrastructure</span><p>EF Core + PostgreSQL repositories, InfluxDB store, email and Telegram senders, OTA firmware storage.</p></div>
+      <div class="ring core"><span class="name">Bms.Application</span><p>Use cases (the ingestion pipeline, normalizer, backfill) and the interfaces every outer project implements.</p></div>
+      <div class="ring core"><span class="name">Bms.Domain</span><p>Entities and rules: Device, Tenant, Site, RawDeviceMessage, Alert. No dependencies at all.</p></div>
+    </div>
+  </section>
+
+  <!-- ===================== STORAGE ===================== -->
+  <section aria-labelledby="store-h">
+    <div class="section-head">
+      <span class="eyebrow">4 · Storage</span>
+      <h2 id="store-h">What goes where</h2>
+      <p class="prose muted">PostgreSQL is written first, then the broker is acknowledged, then InfluxDB. Example message: <code>{"temp":22.5,"hum":50,"battery":3.7,"seq":1042,"timestamp":"10:00:00Z"}</code></p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>PostgreSQL · RawDeviceMessages</th><th>InfluxDB · telemetry</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Content</td><td>The exact bytes received, topic, sequence 1042, device timestamp, status, error</td><td>temperature = 22.5, humidity = 50 at 10:00:00Z, tagged tenant / site / device</td></tr>
+          <tr><td class="k">Not stored</td><td>Nothing is dropped</td><td><code>battery</code> (not a parameter of the device type), <code>seq</code>, raw text</td></tr>
+          <tr><td class="k">Bad messages</td><td>Kept as Rejected, with the reason</td><td>Never written</td></tr>
+          <tr><td class="k">Duplicates</td><td>Unique index on (DeviceId, DedupKey) stops a second copy</td><td>Never reach it</td></tr>
+          <tr><td class="k">Used by</td><td>Acknowledgement boundary, debugging, replay, InfluxDB backfill</td><td>Dashboards, history, rollups, calculated series</td></tr>
+          <tr><td class="k">Keep for</td><td>Short (e.g. 30 days, retention worker planned)</td><td>Long (e.g. 1–2 years, bucket retention)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== RELIABILITY ===================== -->
+  <section aria-labelledby="rel-h">
+    <div class="section-head">
+      <span class="eyebrow">5 · Reliability rules</span>
+      <h2 id="rel-h">Why a temporary outage does not lose telemetry</h2>
+    </div>
+    <div class="rules">
+      <div class="rule"><h3>Persistent MQTT session</h3><p>Ingestion connects as <code>bms-ingestion</code> with MQTT 5, Clean Start off and a 24 h session expiry. While it is away, Mosquitto queues every QoS 1 message for it.</p></div>
+      <div class="rule ack"><h3>Acknowledge only what is stored</h3><p>The broker is told "received" only after the PostgreSQL row is committed. If PostgreSQL is down, nothing is acknowledged and the message is retried or redelivered.</p></div>
+      <div class="rule"><h3>Bad messages never block</h3><p>Malformed payloads, failed validation and unknown devices are recorded as Rejected and acknowledged, so one bad message cannot stop the queue.</p></div>
+      <div class="rule"><h3>Duplicates stored once</h3><p>Identity comes from the device's own sequence number and timestamp. A redelivered copy matches; a reset or wrapped counter does not.</p></div>
+      <div class="rule"><h3>InfluxDB backfill</h3><p>A reading that misses InfluxDB keeps <code>TimeSeriesWrittenAt</code> empty. The backfill worker rebuilds it from the raw payload and writes it later.</p></div>
+      <div class="rule warn"><h3>No false offline alarms</h3><p>Ingestion publishes a retained online / degraded / offline status. The API pauses device-offline checks while ingestion is down or draining a backlog.</p></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Failure</th><th>Telemetry sent during it</th><th>Limit</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Ingestion stopped or crashed</td><td>Queued in Mosquitto, delivered on restart (Docker restarts it)</td><td>24 h session, max_queued_messages</td></tr>
+          <tr><td class="k">PostgreSQL down</td><td>Not acknowledged, held in the broker, processed when it returns</td><td>Broker queue size; devices reconnecting need PostgreSQL to log in</td></tr>
+          <tr><td class="k">InfluxDB down</td><td>Stored in PostgreSQL, backfilled later</td><td>None while PostgreSQL is up</td></tr>
+          <tr><td class="k">Mosquitto restarted cleanly</td><td>Queue saved and restored</td><td>Devices must buffer while it is down</td></tr>
+          <tr><td class="k">Mosquitto crash / power loss</td><td>Restored from the last save</td><td>Up to 60 s of queued messages</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== DEPLOYMENT ===================== -->
+  <section aria-labelledby="dep-h">
+    <div class="section-head">
+      <span class="eyebrow">6 · Deployment</span>
+      <h2 id="dep-h">Today on Docker Compose, target on AWS</h2>
+      <p class="prose muted">The AWS target keeps the same services. Only the broker runs on a virtual machine; the rest are containers and managed databases.</p>
+    </div>
+    <div class="aws">
+      <div class="tier vm"><span class="what">EC2 · 1 VM</span><h3>Mosquitto broker</h3><p>Own VM so app restarts never stop data collection. EBS volume for mosquitto.db, NLB on 8883.</p></div>
+      <div class="tier"><span class="what">ECS Fargate · 1 task</span><h3>Ingestion</h3><p>Exactly one copy, because it owns the bms-ingestion session. Deployed stop-then-start.</p></div>
+      <div class="tier"><span class="what">ECS Fargate · 2+ tasks</span><h3>API</h3><p>Behind an ALB with WAF. Needs a per-task MQTT client id and one sweeper before scaling out.</p></div>
+      <div class="tier"><span class="what">ECS Fargate · 2 tasks</span><h3>Dashboard</h3><p>Next.js behind CloudFront and the ALB.</p></div>
+      <div class="tier"><span class="what">Amazon RDS</span><h3>PostgreSQL 17</h3><p>Multi-AZ in production, point-in-time backups, SSL required.</p></div>
+      <div class="tier"><span class="what">Timestream for InfluxDB</span><h3>InfluxDB v2</h3><p>Managed, same API and Flux queries. Choose v2, not v3.</p></div>
+      <div class="tier"><span class="what">Shared</span><h3>Secrets, certs, logs</h3><p>Secrets Manager, ACM, KMS, CloudWatch, S3 for firmware and backups, SSM for VM access.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    Source of truth: <code>docs/mqtt/reliability.md</code>, <code>docs/architecture/system-architecture.md</code>, and the code under <code>src/backend</code> and <code>src/frontend/bms-dashboard</code>.
+  </footer>
+</div>
+
+<script>
+(() => {
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const NODE_IDS = ["dev", "mq", "ing", "pg", "proc", "inf", "bf", "notif", "api", "web"];
+
+  // Each step: title, text, focus/down/warn node ids, queue depth, packets to animate in order.
+  // packet: { e: edge id, kind: "data" | "ack" | "bad", reverse?: bool, stop?: fraction where it fails }
+  const SCENARIOS = [
+    {
+      id: "normal", label: "Normal reading",
+      steps: [
+        { title: "Device publishes", focus: ["dev"], packets: [{ e: "e-pub" }],
+          text: "Device-001 publishes a reading with QoS 1 to iot/whirlpool/chennai-factory/device-001/telemetry. Mosquitto confirms receipt to the device.",
+          chips: [["QoS 1", "ok"], ["MQTTS 8883", ""]] },
+        { title: "Broker delivers to ingestion", focus: ["mq"], packets: [{ e: "e-deliver" }],
+          text: "Mosquitto delivers the message to the subscriber with client id bms-ingestion. It keeps its own copy until ingestion acknowledges it.",
+          chips: [["client bms-ingestion", ""], ["persistent session", "ok"]] },
+        { title: "Decode, map, validate", focus: ["ing"],
+          text: "Ingestion finds the device from the topic, decodes the JSON, keeps the fields the device type defines, drops the rest the device type does not define (battery), validates ranges and timestamps, and builds the duplicate key from seq 1042 and the device timestamp.",
+          chips: [["decode", ""], ["map", ""], ["validate", ""], ["dedup key s1042@…", ""]] },
+        { title: "Store raw message in PostgreSQL", focus: ["ing", "pg"], packets: [{ e: "e-persist" }],
+          text: "The original bytes, topic, sequence number and timestamp are committed to RawDeviceMessages with status Persisted. A unique index guarantees one row per reading.",
+          chips: [["RawDeviceMessages", "ok"], ["status Persisted", "ok"]] },
+        { title: "Acknowledge to the broker", focus: ["ing", "mq"], packets: [{ e: "e-ack", kind: "ack" }],
+          text: "Only now does ingestion send the acknowledgement (PUBACK). Mosquitto deletes its copy. Everything after this point can fail without losing the reading.",
+          chips: [["PUBACK after commit", "ack"]] },
+        { title: "Write the time series to InfluxDB", focus: ["ing", "inf"], packets: [{ e: "e-influx" }],
+          text: "One point in measurement telemetry: temperature 22.5 and humidity 50 at the device's own timestamp, tagged by tenant, site and device. The PostgreSQL row is marked TimeSeriesWrittenAt.",
+          chips: [["telemetry point", "ok"], ["TimeSeriesWrittenAt set", ""]] },
+        { title: "Lifecycle, calculations, alerts", focus: ["proc", "pg", "notif"], packets: [{ e: "e-process" }, { e: "e-procdb" }, { e: "e-notify" }],
+          text: "The device is marked Online with a fresh LastSeenAt, the latest derived values such as energy consumption are updated, and alert rules are checked. All three results are saved in PostgreSQL (Devices, CalculationStates, Alerts). A triggered critical alert also goes out by email and Telegram.",
+          chips: [["Devices", "ok"], ["CalculationStates", "ok"], ["Alerts", "ok"]] },
+        { title: "Live update to the dashboard", focus: ["api", "web"], packets: [{ e: "e-realtime" }, { e: "e-push" }],
+          text: "Ingestion publishes a real-time event on bms/realtime/events through Mosquitto. The API relays it over SignalR, and every open dashboard updates within a second.",
+          chips: [["bms/realtime/events", ""], ["SignalR", "ok"]] },
+        { title: "Charts read from InfluxDB", focus: ["api", "inf", "web"], packets: [{ e: "e-charts" }],
+          text: "History charts, rollups and calculated series are queried from InfluxDB through the API. Devices, alerts and configuration come from PostgreSQL.",
+          chips: [["Flux queries", ""]] }
+      ]
+    },
+    {
+      id: "ing-down", label: "Ingestion down",
+      steps: [
+        { title: "Ingestion stops", down: ["ing"],
+          text: "A crash, a deploy or a restart takes ingestion offline. Mosquitto keeps the bms-ingestion session and its subscriptions because the session expiry is 24 hours.",
+          chips: [["session kept 24 h", "ok"], ["status: offline", "bad"]] },
+        { title: "Devices keep publishing", focus: ["dev", "mq"], down: ["ing"], queue: 3,
+          packets: [{ e: "e-pub" }, { e: "e-pub" }, { e: "e-pub" }],
+          text: "Devices are unaware of the outage. Each QoS 1 message is accepted by Mosquitto and added to the queue for bms-ingestion, which is saved to disk every 60 seconds.",
+          chips: [["queued, not lost", "warn"]] },
+        { title: "Offline alarms are paused", focus: ["api"], down: ["ing"], queue: 3,
+          text: "The API sees ingestion's retained status change to offline and pauses device-offline and no-telemetry checks. Devices are not flooded with false Offline alerts.",
+          chips: [["sweep paused", "warn"]] },
+        { title: "Docker restarts ingestion", focus: ["ing", "mq"], queue: 3,
+          text: "The restart policy brings ingestion back. It reconnects with the same client id and the log reads: resumed persistent session.",
+          chips: [["restart: unless-stopped", ""], ["resumed session", "ok"]] },
+        { title: "The queue drains", focus: ["ing", "pg"], queue: 0,
+          packets: [{ e: "e-deliver" }, { e: "e-persist" }, { e: "e-ack", kind: "ack" }, { e: "e-deliver" }, { e: "e-persist" }, { e: "e-ack", kind: "ack" }],
+          text: "Every queued message is delivered in order, stored in PostgreSQL, then acknowledged. Readings keep their device timestamps, so charts show them at the time they were measured.",
+          chips: [["0 messages lost", "ok"]] },
+        { title: "Checks resume", focus: ["api"],
+          text: "After a recovery grace period (180 s by default) the API resumes device-offline checks. Limits: the 24 h session expiry and the broker queue size (max_queued_messages).",
+          chips: [["grace 180 s", ""], ["queue limit 100k", "warn"]] }
+      ]
+    },
+    {
+      id: "pg-down", label: "PostgreSQL down",
+      steps: [
+        { title: "PostgreSQL goes down", down: ["pg"],
+          text: "The database is restarting or unreachable. Ingestion and Mosquitto are still running.",
+          chips: [["PostgreSQL unreachable", "bad"]] },
+        { title: "Message arrives", focus: ["mq", "ing"], down: ["pg"], packets: [{ e: "e-pub" }, { e: "e-deliver" }],
+          text: "A reading reaches ingestion as usual.", chips: [] },
+        { title: "Store fails: no acknowledgement", focus: ["ing"], down: ["pg"], warn: ["ing"],
+          packets: [{ e: "e-persist", kind: "bad", stop: 0.55 }],
+          text: "The insert fails with a transient error. Ingestion does NOT acknowledge the message. It retries with backoff (up to 30 s apart) and reports itself as degraded.",
+          chips: [["NOT acknowledged", "bad"], ["status: degraded", "warn"]] },
+        { title: "Later messages wait in the broker", focus: ["mq"], down: ["pg"], warn: ["ing"], queue: 2,
+          packets: [{ e: "e-pub" }, { e: "e-pub" }],
+          text: "While the first message is held, the broker keeps the rest in its queue. If ingestion's connection drops meanwhile, the unacknowledged message is redelivered after reconnect.",
+          chips: [["held, not lost", "warn"]] },
+        { title: "PostgreSQL returns", focus: ["ing", "pg"], queue: 0,
+          packets: [{ e: "e-persist" }, { e: "e-ack", kind: "ack" }, { e: "e-deliver" }, { e: "e-persist" }, { e: "e-ack", kind: "ack" }],
+          text: "The retry succeeds, the message is acknowledged, and the waiting messages are processed in order. In the live test: 10 of 10 stored, 0 rejected.",
+          chips: [["10 / 10 stored", "ok"]] }
+      ]
+    },
+    {
+      id: "inf-down", label: "InfluxDB down",
+      steps: [
+        { title: "InfluxDB goes down", down: ["inf"],
+          text: "The time-series database is unavailable. PostgreSQL is fine.", chips: [["InfluxDB unreachable", "bad"]] },
+        { title: "Reading is stored and acknowledged", focus: ["ing", "pg"], down: ["inf"],
+          packets: [{ e: "e-pub" }, { e: "e-deliver" }, { e: "e-persist" }, { e: "e-ack", kind: "ack" }],
+          text: "Nothing changes up to the acknowledgement: the raw message is committed to PostgreSQL and the broker is released.",
+          chips: [["Persisted", "ok"], ["acknowledged", "ack"]] },
+        { title: "InfluxDB write fails", focus: ["ing"], down: ["inf"],
+          packets: [{ e: "e-influx", kind: "bad", stop: 0.6 }],
+          text: "The write times out after 5 s. The row keeps TimeSeriesWrittenAt empty, which marks it as pending. Alerts and device status still update.",
+          chips: [["TimeSeriesWrittenAt = null", "warn"]] },
+        { title: "InfluxDB returns: backfill", focus: ["bf", "pg", "inf"],
+          packets: [{ e: "e-bfread" }, { e: "e-bfwrite" }],
+          text: "Every 30 s the backfill worker reads pending rows from PostgreSQL, rebuilds each reading from the raw payload with the same mapping, writes it to InfluxDB and marks the row written.",
+          chips: [["no duplicate raw rows", "ok"], ["charts complete", "ok"]] }
+      ]
+    },
+    {
+      id: "bad", label: "Duplicate & bad payload",
+      steps: [
+        { title: "A redelivered copy arrives", focus: ["mq", "ing"], packets: [{ e: "e-deliver" }],
+          text: "After a reconnect the broker may resend a message that was already stored. Its sequence number and device timestamp give the same duplicate key.",
+          chips: [["same DedupKey", "warn"]] },
+        { title: "Recorded once, acknowledged", focus: ["ing", "pg"], packets: [{ e: "e-persist" }, { e: "e-ack", kind: "ack" }],
+          text: "The unique index finds the existing row. The copy is recorded as Rejected: Duplicate, acknowledged, and never reaches InfluxDB, calculations or alerts.",
+          chips: [["Duplicate", "warn"], ["acknowledged", "ack"]] },
+        { title: "A malformed payload arrives", focus: ["dev", "ing"], packets: [{ e: "e-pub", kind: "bad" }, { e: "e-deliver", kind: "bad" }],
+          text: "A device sends {this is not json. Decoding fails.", chips: [["decode failed", "bad"]] },
+        { title: "Rejected, not blocking", focus: ["ing", "pg"], packets: [{ e: "e-persist" }, { e: "e-ack", kind: "ack" }, { e: "e-pub" }, { e: "e-deliver" }],
+          text: "The message is stored as Rejected with the error, acknowledged so it is not retried forever, and the next valid message is processed straight after.",
+          chips: [["Rejected + reason", "warn"], ["next message OK", "ok"]] },
+        { title: "Sequence reset is not a duplicate", focus: ["ing"],
+          text: "A device that rebooted and restarted its counter reuses seq numbers, but with new timestamps, so its readings are kept. A device with no timestamp is checked by sequence plus identical bytes within 24 hours.",
+          chips: [["reset kept", "ok"], ["16-bit wrap kept", "ok"]] }
+      ]
+    }
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const svg = $("diagram"), packet = $("packet");
+  const slots = Array.from(document.querySelectorAll("#queue .slot"));
+  let scenario = 0, step = -1, playing = false, runToken = 0;
+
+  function renderTabs() {
+    const tabs = $("tabs");
+    tabs.innerHTML = "";
+    SCENARIOS.forEach((s, i) => {
+      const b = document.createElement("button");
+      b.className = "tab"; b.type = "button"; b.setAttribute("role", "tab"); b.id = "tab-" + s.id;
+      b.textContent = s.label;
+      b.setAttribute("aria-selected", String(i === scenario));
+      b.addEventListener("click", () => selectScenario(i));
+      tabs.appendChild(b);
+    });
+  }
+
+  function renderStepList() {
+    const ol = $("steps");
+    ol.innerHTML = "";
+    SCENARIOS[scenario].steps.forEach((s, i) => {
+      const li = document.createElement("li");
+      li.textContent = s.title;
+      li.className = i < step ? "done" : i === step ? "current" : "";
+      li.addEventListener("click", () => { stop(); step = i; paint(); });
+      ol.appendChild(li);
+    });
+  }
+
+  function paint() {
+    const steps = SCENARIOS[scenario].steps;
+    const s = steps[step];
+    NODE_IDS.forEach((n) => {
+      const g = $("n-" + n);
+      g.classList.toggle("focus", !!s && (s.focus || []).includes(n));
+      g.classList.toggle("down", !!s && (s.down || []).includes(n));
+      g.classList.toggle("warn", !!s && (s.warn || []).includes(n));
+    });
+    const q = s && s.queue != null ? s.queue : 0;
+    slots.forEach((el, i) => el.classList.toggle("on", i < q));
+    document.querySelectorAll(".edge").forEach((e) => e.classList.remove("active"));
+    if (s) (s.packets || []).forEach((p) => $(p.e).classList.add("active"));
+
+    $("now-title").textContent = s ? s.title : SCENARIOS[scenario].label;
+    $("now-text").textContent = s ? s.text : "Press Play to watch this scenario, or use Next step.";
+    const chips = $("now-chips");
+    chips.innerHTML = "";
+    (s ? s.chips || [] : []).forEach(([t, k]) => {
+      const c = document.createElement("span");
+      c.className = "chip " + (k || ""); c.textContent = t; chips.appendChild(c);
+    });
+    $("counter").textContent = `Step ${Math.max(step + 1, 0)} of ${steps.length}`;
+    $("prev").disabled = step <= 0;
+    $("next").disabled = step >= steps.length - 1;
+    $("play").textContent = playing ? "Pause" : (step >= steps.length - 1 ? "Replay" : "Play");
+    renderStepList();
+  }
+
+  function animate(p, token) {
+    return new Promise((resolve) => {
+      const path = $(p.e);
+      const len = path.getTotalLength();
+      const end = p.stop != null ? p.stop : 1;
+      packet.setAttribute("class", "packet" + (p.kind && p.kind !== "data" ? " " + p.kind : ""));
+      const place = (t) => {
+        const pt = path.getPointAtLength(len * t);
+        packet.setAttribute("cx", pt.x); packet.setAttribute("cy", pt.y);
+      };
+      if (reduceMotion) { place(end); setTimeout(resolve, 250); return; }
+      const dur = 750 * end;
+      const t0 = performance.now();
+      const frame = (now) => {
+        if (token !== runToken) return resolve();
+        const t = Math.min(1, (now - t0) / dur);
+        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        place(eased * end);
+        if (t < 1) requestAnimationFrame(frame);
+        else setTimeout(resolve, p.stop != null ? 450 : 80);
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+
+  async function runStep(i, token) {
+    step = i; paint();
+    for (const p of SCENARIOS[scenario].steps[i].packets || []) {
+      if (token !== runToken) return;
+      await animate(p, token);
+    }
+    packet.setAttribute("cx", -20); packet.setAttribute("cy", -20);
+  }
+
+  const wait = (ms) => new Promise((r) => setTimeout(r, reduceMotion ? Math.min(ms, 600) : ms));
+
+  async function play() {
+    const steps = SCENARIOS[scenario].steps;
+    if (step >= steps.length - 1) step = -1;
+    playing = true;
+    const token = ++runToken;
+    paint();
+    while (playing && token === runToken && step < steps.length - 1) {
+      await runStep(step + 1, token);
+      if (token !== runToken) return;
+      await wait(1800);
+    }
+    if (token === runToken) { playing = false; paint(); }
+  }
+
+  function stop() { playing = false; runToken++; packet.setAttribute("cx", -20); packet.setAttribute("cy", -20); }
+
+  function selectScenario(i) { stop(); scenario = i; step = -1; renderTabs(); paint(); }
+
+  $("play").addEventListener("click", () => { if (playing) { stop(); paint(); } else play(); });
+  $("next").addEventListener("click", () => { stop(); const t = ++runToken; runStep(Math.min(step + 1, SCENARIOS[scenario].steps.length - 1), t); });
+  $("prev").addEventListener("click", () => { stop(); step = Math.max(step - 1, 0); paint(); });
+  $("reset").addEventListener("click", () => { stop(); step = -1; paint(); });
+
+  renderTabs();
+  step = 0;  // show the first step at rest so the page is complete before anyone presses Play
+  paint();
+})();
+</script>
+</body>
+</html>
