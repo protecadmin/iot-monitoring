@@ -4,6 +4,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY src/backend/Bms.Domain/Bms.Domain.csproj src/backend/Bms.Domain/
+COPY src/backend/Bms.Connectors.Core/Bms.Connectors.Core.csproj src/backend/Bms.Connectors.Core/
 COPY src/backend/Bms.Application/Bms.Application.csproj src/backend/Bms.Application/
 COPY src/backend/Bms.Infrastructure/Bms.Infrastructure.csproj src/backend/Bms.Infrastructure/
 COPY src/backend/Bms.Protocols/Bms.Protocols.csproj src/backend/Bms.Protocols/
@@ -13,11 +14,11 @@ COPY src/backend/Bms.Calculations/Bms.Calculations.csproj src/backend/Bms.Calcul
 COPY src/backend/Bms.DeviceManagement/Bms.DeviceManagement.csproj src/backend/Bms.DeviceManagement/
 COPY src/backend/Bms.Api/Bms.Api.csproj src/backend/Bms.Api/
 RUN dotnet restore src/backend/Bms.Api/Bms.Api.csproj
-
+ 
 COPY src/backend/ src/backend/
 RUN dotnet publish src/backend/Bms.Api/Bms.Api.csproj -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 ASfinal
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080
 COPY --from=build /app/publish .

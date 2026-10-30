@@ -1,0 +1,14 @@
+# vibration
+.venv/bin/python3 publish_sample.py --device-id device-014 --interval 5 --mqtt-password cJubZcQdXupRzRYxuawfg7z9UjJwCUvB
+
+# WBGT / heat stress
+.venv/bin/python3 publish_sample.py --device-id device-015 --interval 5 --mqtt-password cJubZcQdXupRzRYxuawfg7z9UjJwCUvB
+
+# noise
+.venv/bin/python3 publish_sample.py --device-id device-016 --interval 5 --mqtt-password cJubZcQdXupRzRYxuawfg7z9UjJwCUvB
+
+
+cd simulators/python-publisher
+.venv/bin/python3 publish_sample.py --device-id device-018 --interval 5 --mqtt-password cJubZcQdXupRzRYxuawfg7z9UjJwCUvB
+
+.venv/bin/python3 publish_sample.py --device-id device-017 --interval 5 --mqtt-password 'cJubZcQdXupRzRYxuawfg7z9UjJwCUvB'
