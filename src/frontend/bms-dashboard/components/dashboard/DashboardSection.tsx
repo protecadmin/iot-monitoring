@@ -7,7 +7,7 @@ export function DashboardSection({ title, summary, children, count }: { title: s
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         {summary && <span className="text-xs text-muted-foreground">{summary}</span>}
       </div>
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">{children}</div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-2.5">{children}</div>
     </section>
   );
 }

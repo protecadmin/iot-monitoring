@@ -215,7 +215,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <TenantSwitcher collapsed={collapsed} />
 
-        <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
+        <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => !item.permission || hasPermission(user?.role, item.permission)) }))
             .filter((group) => group.items.length > 0)
             .map((group) => (
@@ -323,7 +323,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="flex-1 min-w-0 overflow-y-auto overflow-x-auto">
-          <div className="p-3 sm:p-6 max-w-7xl mx-auto">
+          <div className="w-full min-w-0 p-3 sm:p-4">
             {blocked ? (
               <div className="text-center py-16 space-y-2">
                 <ShieldOff className="h-8 w-8 mx-auto text-muted-foreground" />
