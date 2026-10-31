@@ -213,3 +213,35 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Login has one fixed Protec palette, independent of the dashboard theme. */
+.login-page {
+  --background: #f4f3ec;
+  --foreground: #18392e;
+  --card: #fffefa;
+  --card-foreground: #18392e;
+  --border: #d4ddd2;
+  --input: #9aaa9c;
+  --ring: #3b7b60;
+  --muted: #e7ede3;
+  --muted-foreground: #52685d;
+  --destructive: #b42318;
+  --form-field: #fffefa;
+  --form-placeholder: #607367;
+  color: var(--foreground);
+  color-scheme: light;
+  background: radial-gradient(ellipse at top right, #dae8d7 0%, transparent 55%), var(--background);
+}
+.login-page input {
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.login-page input:hover:not(:disabled):not(:focus) {
+  border-color: #668b73;
+}
+.login-page input:focus-visible {
+  outline: 2px solid #3b7b6040;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-page input { transition: none; }
+}
