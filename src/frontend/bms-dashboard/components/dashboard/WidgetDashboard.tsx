@@ -72,6 +72,10 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
         );
         const typeName = typeItems[0].typeName || "Other devices";
         const title = section.id === "safety" ? typeName : `${typeName} - Live readings`;
+        const typeLabel = typeName.toLowerCase();
+        const accent = typeLabel.includes("noise") ? "noise"
+          : typeLabel.includes("vibration") ? "vibration"
+          : /wbgt|heat/.test(typeLabel) ? "heat" : "default";
 
         if (section.id === "live") {
           // One card per device: its readings are rows, so a meter is in one place.
@@ -84,7 +88,7 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
               a[0].device.name.localeCompare(b[0].device.name),
           );
           return (
-            <DashboardSection key={`${typeId}:${section.id}`} title={title} summary={summary} count={devices.length}>
+            <DashboardSection key={`${typeId}:${section.id}`} title={title} accent={accent} summary={summary} count={devices.length}>
               {devices.map((g) => (
                 <DeviceReadingsCard key={g[0].device.id} device={g[0].device} typeName={g[0].typeName} items={g} />
               ))}
@@ -93,7 +97,7 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
         }
 
         return (
-          <DashboardSection key={`${typeId}:${section.id}`} title={title} summary={summary} count={cards.length}>
+          <DashboardSection key={`${typeId}:${section.id}`} title={title} accent={accent} summary={summary} count={cards.length}>
             {cards.map((item) => {
               const Widget = CARD_WIDGETS.SafetyStatus;
               return <Widget key={`${item.device.id}:${item.parameter.key}`} item={item} />;

@@ -507,8 +507,8 @@ export function ConnectorFormModal({ connector, onClose, onSaved }: { connector?
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-2">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+    <section className="space-y-2 dark:space-y-3 dark:rounded-xl dark:border dark:border-border dark:bg-background/25 dark:p-4">
+      <h3 className="text-sm font-semibold text-foreground dark:text-info">{title}</h3>
       {children}
     </section>
   );
