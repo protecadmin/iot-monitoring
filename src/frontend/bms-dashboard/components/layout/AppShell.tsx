@@ -22,19 +22,16 @@ import {
   MapPin,
   Menu,
   Plug,
-  Moon,
   ScrollText,
   Send,
   Settings as SettingsIcon,
   ShieldOff,
-  Sun,
   Users,
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { hasPermission, type Permission } from "@/lib/auth/permissions";
 import { useTenantScope } from "@/lib/tenant/TenantScopeContext";
-import { useTheme } from "@/lib/theme/ThemeContext";
 import { useApi } from "@/hooks/useApi";
 import { useRealtime } from "@/lib/websocket/useRealtime";
 import { TenantsApi, AlertsApi } from "@/lib/api/resources";
@@ -160,19 +157,6 @@ function NotificationBell() {
   );
 }
 
-function ThemeToggle() {
-  const { theme, toggle } = useTheme();
-  return (
-    <button
-      onClick={toggle}
-      className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
-      title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-    >
-      {theme === "light" ? <Moon className="h-4.5 w-4.5" /> : <Sun className="h-4.5 w-4.5" />}
-    </button>
-  );
-}
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -233,6 +217,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 return (
                   <Link
                     key={item.href}
+                    aria-current={active ? "page" : undefined}
                     href={item.href}
                     onClick={closeMobile}
                     title={collapsed ? item.label : undefined}
@@ -252,6 +237,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="border-t border-sidebar-border pt-2">
             <Link
               href="/settings"
+              aria-current={isActive(pathname, "/settings") ? "page" : undefined}
               onClick={closeMobile}
               title={collapsed ? "Settings" : undefined}
               className={`flex items-center gap-3 px-4 py-2 text-sm ${collapsed ? "justify-center px-0" : ""} ${
@@ -292,7 +278,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-1">
             <NotificationBell />
-            <ThemeToggle />
             <div className="relative ml-1">
               <button
                 onClick={() => setUserMenuOpen((o) => !o)}

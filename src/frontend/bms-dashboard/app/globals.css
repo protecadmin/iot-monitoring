@@ -7,136 +7,96 @@
  * instead of hardcoded slate/blue shades — the single place that defines
  * both the light palette and the `.dark` overrides.
  */
+/* One Protec palette throughout the application. */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --border: #e2e8f0;
-  --input: #cbd5e1;
-  --ring: #2563eb;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-  --success: #059669;
-  --success-foreground: #ffffff;
-  --success-muted: #d1fae5;
-  --success-muted-foreground: #047857;
-  --warning: #d97706;
-  --warning-foreground: #ffffff;
-  --warning-muted: #fef3c7;
-  --warning-muted-foreground: #b45309;
-  --info: #2563eb;
-  --info-foreground: #ffffff;
-  --info-muted: #dbeafe;
-  --info-muted-foreground: #1d4ed8;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #0f172a;
-  --sidebar-border: #e2e8f0;
+  --background: #f4f3ec;
+  --foreground: #213c30;
+  --card: #fffefa;
+  --card-foreground: #213c30;
+  --popover: #fffefa;
+  --popover-foreground: #213c30;
+  --border: #d5ddcf;
+  --input: #8b9e8c;
+  --form-field: #fffefa;
+  --form-placeholder: #607367;
+  --ring: #3b7b60;
+  --muted: #e8eee2;
+  --muted-foreground: #596b5e;
+  --primary: #35694e;
+  --primary-foreground: #fffefa;
+  --secondary: #e7eddf;
+  --secondary-foreground: #294b36;
+  --destructive: #b42318;
+  --destructive-foreground: #fffefa;
+  --success: #23734b;
+  --success-foreground: #fffefa;
+  --success-muted: #e0eee0;
+  --success-muted-foreground: #23603c;
+  --warning: #966015;
+  --warning-foreground: #fffefa;
+  --warning-muted: #f7ecd4;
+  --warning-muted-foreground: #875317;
+  --info: #356c72;
+  --info-foreground: #fffefa;
+  --info-muted: #e2eeeb;
+  --info-muted-foreground: #315f64;
+  --sidebar: #e7eddf;
+  --sidebar-foreground: #284b34;
+  --sidebar-border: #cfd9c8;
+  --chart-1: #b7672c;
+  --chart-2: #397657;
+  --chart-3: #8f6c25;
+  --chart-4: #786294;
+  --chart-5: #b54d43;
+  --chart-6: #327d83;
+  --chart-7: #995f7c;
+  /* Legacy contrast variants now use tones suitable for the cream surfaces. */
+  --color-red-400: #b42318;
+  --color-amber-400: #8c5b13;
+  --color-emerald-400: #23734b;
+  --color-cyan-400: #276f75;
+  --color-orange-400: #a75b25;
+  --color-violet-400: #72548c;
   color-scheme: light;
 }
 
-/*
- * Manual toggle only (a `.dark` class on <html>, set by ThemeProvider and
- * persisted to localStorage) — deliberately not `prefers-color-scheme`,
- * since this app previously shipped with light-only styles that broke
- * unreadably on OS dark mode; now that a real dark palette exists this
- * could switch to following the OS too, but keeping it an explicit user
- * choice avoids ever repeating that failure mode silently.
- */
-/* Protec dark palette, adapted from protecgeosystems.com.sg:
- * soft orange #fb923c and warm light text, balanced with neutral charcoal.
- * Light-mode tokens above remain unchanged.
- */
-:root.dark {
-  --background: #0e1116;
-  --foreground: #f5f2ed;
-  --card: #191e27;
-  --card-foreground: #f5f2ed;
-  --popover: #202631;
-  --popover-foreground: #f5f2ed;
-  --border: #323b49;
-  --input: #596b82;
-  --form-field: #242e3c;
-  --form-placeholder: #a6b3c5;
-  --ring: #fb923c;
-  --muted: #252d39;
-  --muted-foreground: #b1bac7;
-  --primary: #fb923c;
-  --primary-foreground: #0c1015;
-  --secondary: #293440;
-  --secondary-foreground: #f5f2ed;
-  --destructive: #f87171;
-  --destructive-foreground: #210a0a;
-  --success: #4ade80;
-  --success-foreground: #071a0c;
-  --success-muted: #15351e;
-  --success-muted-foreground: #86efac;
-  --warning: #fbbf24;
-  --warning-foreground: #211700;
-  --warning-muted: #3b2b0b;
-  --warning-muted-foreground: #fde68a;
-  --info: #8ac9ee;
-  --info-foreground: #101820;
-  --info-muted: #1c3445;
-  --info-muted-foreground: #b2dffc;
-  --sidebar: #141920;
-  --sidebar-foreground: #f5f2ed;
-  --sidebar-border: #303947;
-  --chart-1: #fb923c;
-  --chart-2: #86c76c;
-  --chart-3: #f0d9bd;
-  --chart-4: #c4a7e7;
-  --chart-5: #fb8585;
-  --chart-6: #74d4c4;
-  --chart-7: #edabd0;
-  color-scheme: dark;
-}
+/* Retain established component layout variants under the fixed brand theme. */
+@custom-variant dark (&:where(.protec-theme, .protec-theme *));
 
-/* Use the app's saved theme choice for every dark utility. */
-@custom-variant dark (&:where(.dark, .dark *));
-
-/* Recharts' default axis grey is too dim on the dark surfaces. */
-:root.dark .recharts-cartesian-axis-tick-value {
+/* Keep chart axes aligned with the shared text and border colours. */
+:root.protec-theme .recharts-cartesian-axis-tick-value {
   fill: var(--muted-foreground);
 }
-:root.dark .recharts-cartesian-axis-line,
-:root.dark .recharts-cartesian-axis-tick-line {
+:root.protec-theme .recharts-cartesian-axis-line,
+:root.protec-theme .recharts-cartesian-axis-tick-line {
   stroke: var(--input);
 }
 
 /* Category accents decorate equipment groups; status colours retain their meaning. */
-:root.dark .equipment-group {
-  --equipment-accent: #a8b8cd;
+:root.protec-theme .equipment-group {
+  --equipment-accent: #58745b;
   display: flex;
   flex-direction: column;
 }
-:root.dark .equipment-group[data-accent="noise"] { --equipment-accent: #b8a0f3; }
-:root.dark .equipment-group[data-accent="vibration"] { --equipment-accent: #65d4e8; }
-:root.dark .equipment-group[data-accent="heat"] { --equipment-accent: #efc078; }
-:root.dark .equipment-heading {
+:root.protec-theme .equipment-group[data-accent="noise"] { --equipment-accent: #617952; }
+:root.protec-theme .equipment-group[data-accent="vibration"] { --equipment-accent: #397878; }
+:root.protec-theme .equipment-group[data-accent="heat"] { --equipment-accent: #936a36; }
+:root.protec-theme .equipment-heading {
   border-left-color: var(--equipment-accent);
   min-height: 2.75rem;
 }
-:root.dark .equipment-heading h2 { color: var(--equipment-accent); }
-:root.dark .equipment-cards { flex: 1; }
-:root.dark .equipment-cards > a {
+:root.protec-theme .equipment-heading h2 { color: var(--equipment-accent); }
+:root.protec-theme .equipment-cards { flex: 1; }
+:root.protec-theme .equipment-cards > a {
   min-height: 9.5rem;
-  background-image: linear-gradient(135deg, color-mix(in srgb, var(--equipment-accent) 7%, transparent), transparent 70%);
-  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--equipment-accent) 55%, transparent), 0 4px 12px #00000018;
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--equipment-accent) 3%, transparent), transparent 70%);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--equipment-accent) 30%, transparent), 0 2px 7px #233b2b08;
 }
-:root.dark .equipment-cards > a:hover {
+:root.protec-theme .equipment-cards > a:hover {
   background-color: var(--muted);
 }
-/* Shared dark form controls: raised fields, readable hints and clear focus. */
-:root.dark :where(
+/* Shared form controls and keyboard focus throughout the application. */
+:root.protec-theme :where(
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]),
   select,
   textarea
@@ -144,30 +104,30 @@
   background-color: var(--form-field);
   color: var(--foreground);
 }
-:root.dark :where(input, textarea)::placeholder {
+:root.protec-theme :where(input, textarea)::placeholder {
   color: var(--form-placeholder);
   opacity: 1;
 }
-:root.dark :where(input, select, textarea):focus-visible {
+:root.protec-theme :where(input, select, textarea):focus-visible {
   outline: 2px solid color-mix(in srgb, var(--ring) 65%, transparent);
   outline-offset: 2px;
 }
-:root.dark :where(select option, select optgroup) {
+:root.protec-theme :where(select option, select optgroup) {
   background-color: var(--form-field);
   color: var(--foreground);
 }
-:root.dark :where(input[type="checkbox"], input[type="radio"]) {
+:root.protec-theme :where(input[type="checkbox"], input[type="radio"]) {
   accent-color: var(--primary);
   width: 1rem;
   height: 1rem;
   vertical-align: middle;
   flex-shrink: 0;
 }
-:root.dark input:autofill {
+:root.protec-theme input:autofill {
   -webkit-text-fill-color: var(--foreground);
   box-shadow: 0 0 0 1000px var(--form-field) inset;
 }
-:root.dark .form-dialog {
+:root.protec-theme .form-dialog {
   scrollbar-color: var(--input) var(--card);
   scrollbar-width: thin;
 }
@@ -244,4 +204,10 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .login-page input { transition: none; }
+}
+/* A small warm accent identifies the active page without colouring all content. */
+:root.protec-theme nav a[aria-current="page"] {
+  border-right-color: #c58242;
+  background-color: #dbe6d4;
+  color: #254d35;
 }
