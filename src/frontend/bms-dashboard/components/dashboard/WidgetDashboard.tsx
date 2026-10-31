@@ -29,6 +29,10 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
 
   return (
     <div className="space-y-4">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">Equipment by type</h2>
+        <p className="text-xs text-muted-foreground">Select a device to see its readings, history and alerts.</p>
+      </div>
       {typeGroups.flatMap(([typeId, typeItems]) => SECTIONS.map((section) => {
         const kinds: readonly string[] = section.kinds;
         const cards = typeItems
@@ -40,21 +44,34 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
               a.device.name.localeCompare(b.device.name),
           );
 
-        // At a glance: how many cards need attention.
-        const live = cards.filter((c) => !isOffline(c.device));
-        const danger = live.filter((c) => c.level === "critical").length;
-        const caution = live.filter((c) => c.level === "warning").length;
-        const good = live.filter((c) => c.level === "normal").length;
-        const summary =
-          section.id === "safety" ? (
-            <>
-              {danger > 0 && <span className="text-red-700 dark:text-red-400">{danger} danger · </span>}
-              {caution > 0 && <span className="text-amber-700 dark:text-amber-400">{caution} caution · </span>}
-              <span>{good} good</span>
-              {cards.length > live.length && <span> · {cards.length - live.length} offline</span>}
-              <span className="hidden sm:inline"> — limits from each device&apos;s alert rules</span>
-            </>
-          ) : undefined;
+        // Count devices once, using the worst status among their readings.
+        const deviceGroups = new Map<string, WidgetItem[]>();
+        for (const card of cards) {
+          const group = deviceGroups.get(card.device.id) ?? [];
+          group.push(card);
+          deviceGroups.set(card.device.id, group);
+        }
+        const statusCounts = { normal: 0, warning: 0, critical: 0, unknown: 0, offline: 0 };
+        for (const readings of deviceGroups.values()) {
+          if (isOffline(readings[0].device)) {
+            statusCounts.offline++;
+          } else {
+            const level = [...readings].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level])[0].level;
+            statusCounts[level]++;
+          }
+        }
+        const summary = (
+          <span className="flex flex-wrap gap-x-3 gap-y-1">
+            <span>{deviceGroups.size} {deviceGroups.size === 1 ? "device" : "devices"}</span>
+            {statusCounts.critical > 0 && <span className="text-red-700 dark:text-red-400">{statusCounts.critical} need urgent attention</span>}
+            {statusCounts.warning > 0 && <span className="text-amber-700 dark:text-amber-400">{statusCounts.warning} need checking</span>}
+            {statusCounts.normal > 0 && <span className="text-emerald-700 dark:text-emerald-400">{statusCounts.normal} within limits</span>}
+            {statusCounts.offline > 0 && <span>{statusCounts.offline} offline</span>}
+            {statusCounts.unknown > 0 && <span>{statusCounts.unknown} awaiting readings</span>}
+          </span>
+        );
+        const typeName = typeItems[0].typeName || "Other devices";
+        const title = section.id === "safety" ? typeName : `${typeName} - Live readings`;
 
         if (section.id === "live") {
           // One card per device: its readings are rows, so a meter is in one place.
@@ -67,7 +84,7 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
               a[0].device.name.localeCompare(b[0].device.name),
           );
           return (
-            <DashboardSection key={`${typeId}:${section.id}`} title={`${typeItems[0].typeName || "Unassigned device type"} · ${section.title}`} count={devices.length}>
+            <DashboardSection key={`${typeId}:${section.id}`} title={title} summary={summary} count={devices.length}>
               {devices.map((g) => (
                 <DeviceReadingsCard key={g[0].device.id} device={g[0].device} typeName={g[0].typeName} items={g} />
               ))}
@@ -76,7 +93,7 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
         }
 
         return (
-          <DashboardSection key={`${typeId}:${section.id}`} title={`${typeItems[0].typeName || "Unassigned device type"} · ${section.title}`} summary={summary} count={cards.length}>
+          <DashboardSection key={`${typeId}:${section.id}`} title={title} summary={summary} count={cards.length}>
             {cards.map((item) => {
               const Widget = CARD_WIDGETS.SafetyStatus;
               return <Widget key={`${item.device.id}:${item.parameter.key}`} item={item} />;
