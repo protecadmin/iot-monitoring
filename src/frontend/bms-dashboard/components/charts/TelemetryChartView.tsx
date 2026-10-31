@@ -49,8 +49,10 @@ export function TelemetryChartView({
   loading: boolean;
   error: string | null;
 }) {
-  if (loading) return <LoadingState label="Loading telemetry..." />;
-  if (error) return <ErrorState message={error} />;
+  // Keep the same height while fetching a new range so the page does not
+  // shrink and move the user's scroll position on every range change.
+  if (loading) return <div className="flex h-[260px] items-center justify-center" aria-busy="true"><LoadingState label="Loading telemetry..." /></div>;
+  if (error) return <div className="flex h-[260px] items-center justify-center"><ErrorState message={error} /></div>;
 
   // Derived keys are prefixed so a calculated series can never collide with,
   // or be mistaken for, a measured field of the same name.
@@ -65,7 +67,7 @@ export function TelemetryChartView({
     return row;
   });
 
-  if (chartData.length === 0) return <p className="text-sm text-muted-foreground py-8 text-center">No telemetry yet for this device.</p>;
+  if (chartData.length === 0) return <p className="flex h-[260px] items-center justify-center text-sm text-muted-foreground text-center">No telemetry yet for this device.</p>;
 
   const periodKeys = new Set(periodKeysOf(points, derivedSeries));
   const measuredUnits = new Set(series.map((key) => unitOf(key, parameters)).filter(Boolean));

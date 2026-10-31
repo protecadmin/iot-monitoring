@@ -3,7 +3,7 @@
 import { ErrorState } from "@/components/ui/States";
 import { DashboardSection } from "./DashboardSection";
 import { CARD_WIDGETS, SECTIONS } from "./registry";
-import { useWidgetData } from "./useWidgetData";
+import { useWidgetData, type WidgetItem } from "./useWidgetData";
 import { DeviceReadingsCard, worstLevel } from "./widgets/DeviceReadingsCard";
 import { LEVEL_ORDER, isOffline } from "./widgets/shared";
 
@@ -19,11 +19,19 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
   if (error) return <ErrorState message={error} />;
   if (items.length === 0) return null;
 
+  const byType = new Map<string, WidgetItem[]>();
+  for (const item of items) {
+    const group = byType.get(item.device.deviceTypeId) ?? [];
+    group.push(item);
+    byType.set(item.device.deviceTypeId, group);
+  }
+  const typeGroups = [...byType.entries()].sort(([, a], [, b]) => a[0].typeName.localeCompare(b[0].typeName));
+
   return (
     <div className="space-y-4">
-      {SECTIONS.map((section) => {
+      {typeGroups.flatMap(([typeId, typeItems]) => SECTIONS.map((section) => {
         const kinds: readonly string[] = section.kinds;
-        const cards = items
+        const cards = typeItems
           .filter((i) => kinds.includes(i.kind))
           .sort(
             (a, b) =>
@@ -59,7 +67,7 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
               a[0].device.name.localeCompare(b[0].device.name),
           );
           return (
-            <DashboardSection key={section.id} title={section.title} count={devices.length}>
+            <DashboardSection key={`${typeId}:${section.id}`} title={`${typeItems[0].typeName || "Unassigned device type"} · ${section.title}`} count={devices.length}>
               {devices.map((g) => (
                 <DeviceReadingsCard key={g[0].device.id} device={g[0].device} typeName={g[0].typeName} items={g} />
               ))}
@@ -68,14 +76,14 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
         }
 
         return (
-          <DashboardSection key={section.id} title={section.title} summary={summary} count={cards.length}>
+          <DashboardSection key={`${typeId}:${section.id}`} title={`${typeItems[0].typeName || "Unassigned device type"} · ${section.title}`} summary={summary} count={cards.length}>
             {cards.map((item) => {
               const Widget = CARD_WIDGETS.SafetyStatus;
               return <Widget key={`${item.device.id}:${item.parameter.key}`} item={item} />;
             })}
           </DashboardSection>
         );
-      })}
+      }))}
     </div>
   );
 }

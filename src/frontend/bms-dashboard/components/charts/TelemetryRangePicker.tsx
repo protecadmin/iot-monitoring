@@ -14,6 +14,8 @@ export function TelemetryRangePicker({ range, onChange }: { range: TelemetryRang
       {RANGES.map((r) => (
         <button
           key={r.value}
+          type="button"
+          aria-pressed={range === r.value}
           onClick={() => onChange(r.value)}
           className={`text-xs px-2 py-1 rounded ${range === r.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted"}`}
         >
