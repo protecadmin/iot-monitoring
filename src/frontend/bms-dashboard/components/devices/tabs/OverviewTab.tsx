@@ -1,3 +1,4 @@
+import { formatMeasurement } from "@/lib/format";
 import { useApi } from "@/hooks/useApi";
 import { TelemetryApi } from "@/lib/api/resources";
 import { StatCard } from "@/components/ui/States";
@@ -46,7 +47,7 @@ export function OverviewTab({ device, parameters = [] }: { device: DeviceDto; pa
               {Object.entries(telemetryQuery.data.point.fields ?? {})
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([key, value]) => (
-                  <StatCard key={key} label={fieldLabel(key)} value={value.toFixed(2)} />
+                  <StatCard key={key} label={parameters.find((p) => p.key === key)?.label ?? fieldLabel(key)} value={formatMeasurement(value, key)} />
                 ))}
             </div>
             <p className="text-xs text-muted-foreground mt-3">As of {new Date(telemetryQuery.data.point.timestamp).toLocaleString()}</p>

@@ -15,7 +15,7 @@ export const LEVEL_ORDER: Record<Level, number> = { critical: 0, warning: 1, nor
 
 export function formatValue(value: number | undefined, decimals = 1) {
   if (value == null || !Number.isFinite(value)) return "—";
-  return value.toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: Math.min(decimals, 1) });
+  return value.toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: decimals === 4 ? 4 : Math.min(decimals, 1) });
 }
 
 /** A device that isn't reporting must never look current. */

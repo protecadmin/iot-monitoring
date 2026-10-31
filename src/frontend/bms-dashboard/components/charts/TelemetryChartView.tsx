@@ -107,7 +107,7 @@ export function TelemetryChartView({
                 <div className="font-medium text-foreground mb-1">{row.time}</div>
                 {payload.map((entry) => (
                   <div key={String(entry.dataKey)} style={{ color: entry.color }} className="tabular-nums">
-                    {String(entry.dataKey)} : {typeof entry.value === "number" ? formatMeasurement(entry.value) : entry.value}
+                    {String(entry.dataKey)} : {typeof entry.value === "number" ? formatMeasurement(entry.value, series.includes(String(entry.dataKey)) ? String(entry.dataKey) : undefined) : entry.value}
                   </div>
                 ))}
                 {/* A windowed value exists only at its period's end, so hovering

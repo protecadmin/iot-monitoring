@@ -37,7 +37,7 @@ export function LiveTab({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {series.map((key) => {
             const value = latestValue(points, key, "fields");
-            return <StatCard key={key} label={humanizeKey(key)} value={value !== undefined ? value.toFixed(2) : "—"} />;
+            return <StatCard key={key} label={parameters.find((p) => p.key === key)?.label ?? humanizeKey(key)} value={value !== undefined ? formatMeasurement(value, key) : "—"} />;
           })}
           {derivedSeries.map((key) => {
             const value = latestValue(points, key, "derived");

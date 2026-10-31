@@ -77,7 +77,7 @@ export function TelemetryTable({
         <td className="px-4 py-2 text-muted-foreground text-xs whitespace-nowrap">{new Date(point.timestamp).toLocaleString()}</td>
         {series.map((key) => (
           <td key={key} className="px-4 py-2 text-foreground tabular-nums">
-            {point.fields?.[key] !== undefined ? point.fields[key].toFixed(2) : "—"}
+            {point.fields?.[key] !== undefined ? formatMeasurement(point.fields[key], key) : "—"}
           </td>
         ))}
         {inlineKeys.map((key) => {

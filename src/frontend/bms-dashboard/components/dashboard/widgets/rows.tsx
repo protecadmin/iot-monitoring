@@ -1,3 +1,4 @@
+import { measurementDecimals } from "@/lib/format";
 import { Sparkline } from "@/components/digital-twin/parts/Sparkline";
 import type { Level } from "@/components/digital-twin/types";
 import type { WidgetItem } from "../useWidgetData";
@@ -38,7 +39,7 @@ function RowFrame({ item, level, children }: { item: WidgetItem; level: Level | 
 
 function Value({ value, unit, decimals }: { value: number | undefined; unit: string; decimals: number }) {
   return (
-    <span className="w-20 shrink-0 text-sm font-semibold text-foreground tabular-nums whitespace-nowrap">
+    <span className={`${decimals === 4 ? "w-28" : "w-20"} shrink-0 text-sm font-semibold text-foreground tabular-nums whitespace-nowrap`}>
       {formatValue(value, decimals)} <span className="text-[11px] font-normal text-muted-foreground">{unit}</span>
     </span>
   );
@@ -48,11 +49,12 @@ function Value({ value, unit, decimals }: { value: number | undefined; unit: str
 export function LiveValueRow({ item }: { item: WidgetItem }) {
   const level = rowLevel(item);
   const color = level && level !== "unknown" ? LEVEL_STYLE[level].color : "#3b82f6";
+  const decimals = measurementDecimals(item.parameter.key);
   const peak = item.trend.length ? Math.max(...item.trend) : undefined;
   return (
     <RowFrame item={item} level={level}>
-      <Value value={item.value} unit={item.parameter.unit ?? ""} decimals={2} />
-      <div className="min-w-0 flex-1" title={peak != null ? `Peak last hour: ${formatValue(peak, 2)} ${item.parameter.unit ?? ""}` : undefined}>
+      <Value value={item.value} unit={item.parameter.unit ?? ""} decimals={decimals} />
+      <div className="min-w-0 flex-1" title={peak != null ? `Peak last hour: ${formatValue(peak, decimals)} ${item.parameter.unit ?? ""}` : undefined}>
         <Sparkline values={item.trend} warning={item.limits?.high?.warning} color={color} className="h-5" />
       </div>
     </RowFrame>

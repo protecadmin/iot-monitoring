@@ -51,13 +51,19 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
           group.push(card);
           deviceGroups.set(card.device.id, group);
         }
-        const statusCounts = { normal: 0, warning: 0, critical: 0, unknown: 0, offline: 0 };
+        const statusCounts = { normal: 0, warning: 0, critical: 0, unknown: 0, offline: 0, reporting: 0 };
         for (const readings of deviceGroups.values()) {
           if (isOffline(readings[0].device)) {
             statusCounts.offline++;
           } else {
-            const level = [...readings].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level])[0].level;
-            statusCounts[level]++;
+            const available = readings.filter((reading) => reading.value != null && Number.isFinite(reading.value));
+            if (available.length === 0) {
+              statusCounts.unknown++;
+            } else {
+              const level = [...available].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level])[0].level;
+              if (level === "unknown") statusCounts.reporting++;
+              else statusCounts[level]++;
+            }
           }
         }
         const summary = (
@@ -67,6 +73,7 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
             {statusCounts.warning > 0 && <span className="text-amber-700 dark:text-amber-400">{statusCounts.warning} need checking</span>}
             {statusCounts.normal > 0 && <span className="text-emerald-700 dark:text-emerald-400">{statusCounts.normal} within limits</span>}
             {statusCounts.offline > 0 && <span>{statusCounts.offline} offline</span>}
+            {statusCounts.reporting > 0 && <span>{statusCounts.reporting} reporting</span>}
             {statusCounts.unknown > 0 && <span>{statusCounts.unknown} awaiting readings</span>}
           </span>
         );
