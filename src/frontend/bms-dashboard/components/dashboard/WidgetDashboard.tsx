@@ -28,8 +28,8 @@ export function WidgetDashboard({ tenantId, siteId }: { tenantId: string | undef
   const typeGroups = [...byType.entries()].sort(([, a], [, b]) => a[0].typeName.localeCompare(b[0].typeName));
 
   return (
-    <div className="space-y-4">
-      <div>
+    <div className="space-y-4 dark:grid dark:grid-cols-1 dark:gap-5 dark:space-y-0 dark:lg:grid-cols-2 dark:2xl:grid-cols-3">
+      <div className="dark:col-span-full">
         <h2 className="text-base font-semibold text-foreground">Equipment by type</h2>
         <p className="text-xs text-muted-foreground">Select a device to see its readings, history and alerts.</p>
       </div>

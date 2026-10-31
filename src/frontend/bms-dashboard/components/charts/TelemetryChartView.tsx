@@ -6,7 +6,7 @@ import { formatMeasurement } from "@/lib/format";
 import { derivedOrMeasured, periodKeysOf } from "@/hooks/useTelemetryHistory";
 import type { DeviceTypeParameterDto, TelemetryPointDto } from "@/types/api";
 
-const COLORS = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2", "#c026d3"];
+const COLORS = ["var(--chart-1, #2563eb)", "var(--chart-2, #059669)", "var(--chart-3, #d97706)", "var(--chart-4, #7c3aed)", "var(--chart-5, #dc2626)", "var(--chart-6, #0891b2)", "var(--chart-7, #c026d3)"];
 const DERIVED_PREFIX = "ƒ ";
 
 type Row = Record<string, number | string> & { time: string; index: number };

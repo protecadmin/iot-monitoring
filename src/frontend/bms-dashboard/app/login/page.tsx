@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import Image from "next/image";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { ApiError } from "@/lib/api/client";
 
@@ -28,14 +29,11 @@ export default function LoginPage() {
   return (
     <div className="flex-1 flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 justify-center mb-6">
-          <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
-            <Activity className="h-5 w-5" />
+        <div className="flex flex-col items-center gap-3 mb-6">
+          <div className="rounded-lg bg-white px-4 py-3">
+            <Image src="/logo/protecgeosystems-logo.webp" alt="Pro-Tec Geosystems" width={1533} height={931} className="h-auto w-40" />
           </div>
-          <div>
-            <div className="font-semibold text-foreground leading-tight">BMS Platform</div>
-            <div className="text-xs text-muted-foreground leading-tight">Industrial IoT Monitoring</div>
-          </div>
+          <p className="text-sm text-muted-foreground">Smart Monitoring System</p>
         </div>
 
         <div className="bg-card border border-border rounded-lg p-8 shadow-sm">

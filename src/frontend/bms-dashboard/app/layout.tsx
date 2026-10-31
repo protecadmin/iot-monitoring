@@ -25,7 +25,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BMS Industrial IoT Platform",
+  title: "Pro-Tec | Monitoring",
   description: "Industrial IoT / BMS monitoring dashboard",
 };
 

@@ -2,8 +2,8 @@
 export function DashboardSection({ title, summary, children, count }: { title: string; summary?: React.ReactNode; children: React.ReactNode; count: number }) {
   if (count === 0) return null;
   return (
-    <section className="space-y-1.5">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <section className="space-y-1.5 dark:min-w-0 dark:space-y-3">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 dark:flex-col dark:items-start dark:border-l-2 dark:border-primary/60 dark:pl-3">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         {summary && <span className="text-xs text-muted-foreground">{summary}</span>}
       </div>

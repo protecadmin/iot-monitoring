@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  Activity,
   Bell,
   BellRing,
   Box,
@@ -99,7 +99,7 @@ function pageTitleFor(pathname: string | null): string {
   const match = ALL_ITEMS.find((i) => isActive(pathname, i.href));
   if (match) return match.label;
   if (pathname?.startsWith("/devices/")) return "Device Details";
-  return "BMS Platform";
+  return "Pro-Tec Monitoring";
 }
 
 /**
@@ -200,15 +200,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "md:w-16" : "md:w-56"}`}
       >
-        <div className={`flex items-center gap-2 px-4 py-4 border-b border-sidebar-border ${collapsed ? "justify-center px-0" : ""}`}>
-          <Activity className="h-5 w-5 text-primary shrink-0" />
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold text-sidebar-foreground truncate">BMS Platform</div>
-              <div className="text-xs text-muted-foreground truncate">Industrial IoT Monitoring</div>
-            </div>
-          )}
-          <button onClick={closeMobile} className="md:hidden p-1 -mr-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close menu">
+        <div className={`relative flex shrink-0 items-center justify-center border-b border-sidebar-border py-3 ${collapsed ? "px-0" : "px-4"}`}>
+          <Link href="/dashboard" onClick={closeMobile} aria-label="Pro-Tec Geosystems dashboard" className="flex min-w-0 flex-col items-center justify-center gap-1.5 text-center">
+            <span className="inline-flex shrink-0 rounded-md bg-white p-1">
+              <Image
+                src="/logo/protecgeosystems-logo.webp"
+                alt="Pro-Tec Geosystems"
+                width={1533}
+                height={931}
+                className={`h-auto ${collapsed ? "w-9" : "w-24"}`}
+              />
+            </span>
+            {!collapsed && <span className="text-xs text-muted-foreground">Smart Monitoring System</span>}
+          </Link>
+          <button onClick={closeMobile} className="absolute right-2 top-2 md:hidden p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close menu">
             <X className="h-5 w-5" />
           </button>
         </div>

@@ -51,40 +51,63 @@
  * could switch to following the OS too, but keeping it an explicit user
  * choice avoids ever repeating that failure mode silently.
  */
+/* Protec dark palette, adapted from protecgeosystems.com.sg:
+ * orange #ff5e14 and warm light text, balanced with neutral charcoal.
+ * Light-mode tokens above remain unchanged.
+ */
 :root.dark {
-  --background: #0b1220;
-  --foreground: #e2e8f0;
-  --card: #111a2e;
-  --card-foreground: #e2e8f0;
-  --popover: #111a2e;
-  --popover-foreground: #e2e8f0;
-  --border: #223047;
-  --input: #2c3b56;
-  --ring: #3b82f6;
-  --muted: #17223a;
-  --muted-foreground: #94a3b8;
-  --primary: #3b82f6;
-  --primary-foreground: #f8fafc;
-  --secondary: #17223a;
-  --secondary-foreground: #e2e8f0;
-  --destructive: #ef4444;
-  --destructive-foreground: #f8fafc;
-  --success: #10b981;
-  --success-foreground: #04140f;
-  --success-muted: #063a2c;
-  --success-muted-foreground: #6ee7b7;
-  --warning: #f59e0b;
-  --warning-foreground: #1c1300;
-  --warning-muted: #422e06;
-  --warning-muted-foreground: #fcd34d;
-  --info: #3b82f6;
-  --info-foreground: #f8fafc;
-  --info-muted: #0f2a52;
-  --info-muted-foreground: #93c5fd;
-  --sidebar: #0e1626;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-border: #223047;
+  --background: #0e1116;
+  --foreground: #f5f2ed;
+  --card: #191e27;
+  --card-foreground: #f5f2ed;
+  --popover: #202631;
+  --popover-foreground: #f5f2ed;
+  --border: #323b49;
+  --input: #4b5869;
+  --ring: #ff5e14;
+  --muted: #252d39;
+  --muted-foreground: #b1bac7;
+  --primary: #ff5e14;
+  --primary-foreground: #0c1015;
+  --secondary: #293440;
+  --secondary-foreground: #f5f2ed;
+  --destructive: #f87171;
+  --destructive-foreground: #210a0a;
+  --success: #4ade80;
+  --success-foreground: #071a0c;
+  --success-muted: #15351e;
+  --success-muted-foreground: #86efac;
+  --warning: #fbbf24;
+  --warning-foreground: #211700;
+  --warning-muted: #3b2b0b;
+  --warning-muted-foreground: #fde68a;
+  --info: #8ac9ee;
+  --info-foreground: #101820;
+  --info-muted: #1c3445;
+  --info-muted-foreground: #b2dffc;
+  --sidebar: #141920;
+  --sidebar-foreground: #f5f2ed;
+  --sidebar-border: #303947;
+  --chart-1: #ff5e14;
+  --chart-2: #86c76c;
+  --chart-3: #f0d9bd;
+  --chart-4: #c4a7e7;
+  --chart-5: #fb8585;
+  --chart-6: #74d4c4;
+  --chart-7: #edabd0;
   color-scheme: dark;
+}
+
+/* Use the app's saved theme choice for every dark utility. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Recharts' default axis grey is too dim on the dark surfaces. */
+:root.dark .recharts-cartesian-axis-tick-value {
+  fill: var(--muted-foreground);
+}
+:root.dark .recharts-cartesian-axis-line,
+:root.dark .recharts-cartesian-axis-tick-line {
+  stroke: var(--input);
 }
 
 @theme inline {
