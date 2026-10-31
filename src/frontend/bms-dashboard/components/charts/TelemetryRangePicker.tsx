@@ -10,14 +10,14 @@ const RANGES: { value: TelemetryRange; label: string }[] = [
 
 export function TelemetryRangePicker({ range, onChange }: { range: TelemetryRange; onChange: (range: TelemetryRange) => void }) {
   return (
-    <div className="flex gap-1 mb-3">
+    <div className="telemetry-range flex flex-wrap gap-1 mb-3">
       {RANGES.map((r) => (
         <button
           key={r.value}
           type="button"
           aria-pressed={range === r.value}
           onClick={() => onChange(r.value)}
-          className={`text-xs px-2 py-1 rounded ${range === r.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted"}`}
+          className={`text-xs px-2 py-1 rounded border border-transparent ${range === r.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted"}`}
         >
           {r.label}
         </button>

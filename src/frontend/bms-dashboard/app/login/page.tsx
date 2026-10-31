@@ -40,7 +40,7 @@ export default function LoginPage() {
             <Image src="/logo/protecgeosystems-logo.webp" alt="Pro-Tec Geosystems" width={1533} height={931} className="h-auto w-28 xl:w-32" />
           </a>
           <div className="max-w-lg pt-40 text-[#fbf3ea]">
-            <div className="mb-6 h-1 w-12 rounded-full bg-[#fb923c]" />
+            <div className="mb-6 h-1 w-12 rounded-full bg-accent" />
             <p className="mb-4 text-xs font-medium uppercase tracking-[0.2em] text-white/80">Smart Monitoring System</p>
             <h2 className="text-4xl font-semibold leading-[1.12] tracking-tight xl:text-6xl">Safer sites.<br />Smarter decisions.</h2>
             <div className="mt-10 flex items-center justify-between gap-4 border-t border-white/20 pt-5 text-xs text-white/75">
@@ -90,7 +90,7 @@ export default function LoginPage() {
 
             {error && <div id="login-error" role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
 
-            <button type="submit" disabled={submitting} className="flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-[#fb923c] px-5 text-sm font-semibold text-[#171b20] shadow-sm transition-colors hover:bg-[#fdab69] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400 disabled:cursor-wait disabled:opacity-60">
+            <button type="submit" disabled={submitting} className="flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-accent px-5 text-sm font-semibold text-accent-foreground shadow-none transition-colors hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-60">
               {submitting ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />Signing in...</> : <>Sign in<ArrowRight className="h-4 w-4" aria-hidden="true" /></>}
             </button>
           </form>

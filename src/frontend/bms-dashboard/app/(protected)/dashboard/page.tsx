@@ -137,12 +137,12 @@ export default function DashboardPage() {
         <Stat label="Critical" value={criticalCount} tone="text-red-600 dark:text-red-400" icon={AlertTriangle} href="/alerts?severity=Critical" />
       </div>
 
-      {actionError && <p className="text-xs text-destructive">{actionError}</p>}
-      <LiveAlerts alerts={scopedAlerts} devices={deviceById} canHandle={canHandle} onAcknowledge={acknowledge} />
-
       <DeviceStatusStrip devices={scopedDevices} alerts={scopedAlerts} />
 
       <WidgetDashboard tenantId={effectiveTenantId} siteId={siteId} />
+
+      {actionError && <p className="text-xs text-destructive">{actionError}</p>}
+      <LiveAlerts alerts={scopedAlerts} devices={deviceById} canHandle={canHandle} onAcknowledge={acknowledge} />
 
       <section className="bg-card border border-border rounded-lg p-3 shadow-sm min-w-0">
         <div className="flex items-center justify-between gap-2 mb-2">

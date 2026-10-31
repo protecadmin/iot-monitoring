@@ -9,19 +9,23 @@
  */
 /* One Protec palette throughout the application. */
 :root {
-  --background: #f4f3ec;
-  --foreground: #213c30;
-  --card: #fffefa;
-  --card-foreground: #213c30;
-  --popover: #fffefa;
-  --popover-foreground: #213c30;
-  --border: #d5ddcf;
+  --background: #f5f5f0;
+  --foreground: #24382e;
+  --card: #ffffff;
+  --card-foreground: #24382e;
+  --popover: #ffffff;
+  --popover-foreground: #24382e;
+  --border: #dce2d9;
   --input: #8b9e8c;
   --form-field: #fffefa;
   --form-placeholder: #607367;
   --ring: #3b7b60;
-  --muted: #e8eee2;
-  --muted-foreground: #596b5e;
+  --muted: #edf0e9;
+  --muted-foreground: #5b6b61;
+  --accent: #a85f36;
+  --accent-foreground: #fffefa;
+  --accent-soft: #f3e3d5;
+  --accent-ink: #854725;
   --primary: #35694e;
   --primary-foreground: #fffefa;
   --secondary: #e7eddf;
@@ -40,9 +44,9 @@
   --info-foreground: #fffefa;
   --info-muted: #e2eeeb;
   --info-muted-foreground: #315f64;
-  --sidebar: #e7eddf;
-  --sidebar-foreground: #284b34;
-  --sidebar-border: #cfd9c8;
+  --sidebar: #f0ece3;
+  --sidebar-foreground: #294735;
+  --sidebar-border: #d8d4c8;
   --chart-1: #b7672c;
   --chart-2: #397657;
   --chart-3: #8f6c25;
@@ -143,6 +147,8 @@
   --color-ring: var(--ring);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
@@ -207,7 +213,42 @@ body {
 }
 /* A small warm accent identifies the active page without colouring all content. */
 :root.protec-theme nav a[aria-current="page"] {
-  border-right-color: #c58242;
-  background-color: #dbe6d4;
-  color: #254d35;
+  border-right-color: var(--accent);
+  background-color: #ebe5d8;
+  color: #294735;
+}
+/* Matte clay accents for actions; ordinary links and the main surfaces stay green. */
+:root.protec-theme :is(button, a).bg-primary {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+  box-shadow: none;
+}
+:root.protec-theme :is(button, a).bg-primary:hover:not(:disabled) {
+  background-color: #914f2e;
+}
+:root.protec-theme .telemetry-range button[aria-pressed="true"] {
+  background-color: var(--accent-soft);
+  color: var(--accent-ink);
+  border-color: #d6b59e;
+  box-shadow: none;
+}
+:root.protec-theme .telemetry-range button[aria-pressed="true"]:hover {
+  background-color: #ecd6c5;
+}
+/* Give navigation its own contrast; keep the workspace and reading cards neutral. */
+.protec-sidebar {
+  --foreground: #294735;
+  --muted-foreground: #5f6e61;
+  --muted: #e6e4d8;
+  --background: #f6f3eb;
+  --input: #9aa793;
+  --form-field: #faf8f2;
+  --form-placeholder: #657263;
+  --ring: #9d683c;
+  --primary: #355f45;
+  color-scheme: light;
+}
+:root.protec-theme .equipment-cards > a {
+  background-image: none;
+  box-shadow: none;
 }
