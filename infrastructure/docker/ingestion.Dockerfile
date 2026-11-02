@@ -17,7 +17,7 @@ COPY src/backend/Bms.Ingestion/Bms.Ingestion.csproj src/backend/Bms.Ingestion/
 RUN dotnet restore src/backend/Bms.Ingestion/Bms.Ingestion.csproj
 
 COPY src/backend/ src/backend/
-RUN dotnet publish src/backend/Bms.Ingestion/Bms.Ingestion.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish src/backend/Bms.Ingestion/Bms.Ingestion.csproj -c Release -o /app/publish --no-restore -m:1 /p:UseSharedCompilation=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app

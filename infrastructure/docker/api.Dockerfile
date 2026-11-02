@@ -16,9 +16,9 @@ COPY src/backend/Bms.Api/Bms.Api.csproj src/backend/Bms.Api/
 RUN dotnet restore src/backend/Bms.Api/Bms.Api.csproj
  
 COPY src/backend/ src/backend/
-RUN dotnet publish src/backend/Bms.Api/Bms.Api.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish src/backend/Bms.Api/Bms.Api.csproj -c Release -o /app/publish --no-restore -m:1 /p:UseSharedCompilation=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 ASfinal
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080
 COPY --from=build /app/publish .

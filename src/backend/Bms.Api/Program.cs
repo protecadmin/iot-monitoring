@@ -197,10 +197,13 @@ using (var scope = app.Services.CreateScope())
     // Retries until PostgreSQL is reachable instead of crashing on a
     // database that is still starting or briefly down.
     await DatabaseStartup.MigrateWithRetryAsync(app.Services, logger, app.Lifetime.ApplicationStopping, async services =>
-        await DbSeeder.SeedAsync(
-            services.GetRequiredService<BmsDbContext>(),
-            services.GetRequiredService<Bms.Application.Abstractions.Security.IPasswordHasher>(),
-            logger));
+    {
+        var db = services.GetRequiredService<BmsDbContext>();
+        var hasher = services.GetRequiredService<Bms.Application.Abstractions.Security.IPasswordHasher>();
+        if (app.Environment.IsDevelopment()) await DbSeeder.SeedAsync(db, hasher, logger);
+        else await ProductionBootstrapper.EnsureAsync(db, hasher,
+            app.Configuration["Bootstrap:AdminEmail"], app.Configuration["Bootstrap:AdminPassword"], app.Lifetime.ApplicationStopping);
+    });
 
     // Doesn't block startup (unlike the Jwt:SecretKey check) since a
     // wrong CORS origin only breaks the dashboard, not a security

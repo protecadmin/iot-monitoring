@@ -6,6 +6,12 @@
 **/node_modules/
 **/.next/
 .git/
+**/appsettings.Development.json
+**/*.pem
+**/*.key
+logs/
+*.log
+simulators/python-publisher/run.text
 .env
 .env.*
 !.env.example
