@@ -1,3 +1,4 @@
+using Bms.Application.Tilt;
 using System.Globalization;
 using Bms.Application.Abstractions.Calculations;
 using Bms.Application.Abstractions.Telemetry;
@@ -18,7 +19,7 @@ namespace Bms.Infrastructure.Telemetry;
 /// alongside as a field so freshness/latency can be queried without a
 /// second write path.
 /// </summary>
-public sealed class InfluxTelemetryStore : ITelemetryStore, ICalculatedSeriesStore, IDisposable
+public sealed class InfluxTelemetryStore : ITelemetryStore, ICalculatedSeriesStore, ITiltTelemetryReader, IDisposable
 {
     private const string Measurement = "telemetry";
 
@@ -102,7 +103,10 @@ public sealed class InfluxTelemetryStore : ITelemetryStore, ICalculatedSeriesSto
     public Task<IReadOnlyList<TelemetryPoint>> GetHistoryAsync(Guid deviceId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
         QueryRangeAsync(deviceId, from.UtcDateTime.ToString("O"), to.UtcDateTime.ToString("O"), null, ct);
 
-    private async Task<IReadOnlyList<TelemetryPoint>> QueryRangeAsync(Guid deviceId, string start, string stop, string? aggregateEvery, CancellationToken ct)
+    public Task<IReadOnlyList<TelemetryPoint>> GetTiltHistoryAsync(Guid deviceId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>
+        QueryRangeAsync(deviceId, from.UtcDateTime.ToString("O"), to.UtcDateTime.ToString("O"), null, ct, strict: true);
+
+    private async Task<IReadOnlyList<TelemetryPoint>> QueryRangeAsync(Guid deviceId, string start, string stop, string? aggregateEvery, CancellationToken ct, bool strict = false)
     {
         var aggregation = aggregateEvery is null
             ? string.Empty
@@ -125,6 +129,7 @@ public sealed class InfluxTelemetryStore : ITelemetryStore, ICalculatedSeriesSto
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed querying telemetry history for device {DeviceId} from InfluxDB", deviceId);
+            if (strict) throw;
             return [];
         }
     }

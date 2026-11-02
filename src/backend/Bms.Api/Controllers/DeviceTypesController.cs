@@ -37,6 +37,7 @@ public sealed class DeviceTypesController(IDeviceTypeRepository deviceTypes, Der
             Name = name,
             Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
             ExpectedIntervalSeconds = ValidInterval(request.ExpectedIntervalSeconds),
+            TiltAxes = ValidAxes(request.TiltAxes),
             SupportsCommands = request.SupportsCommands
         };
         await deviceTypes.AddAsync(type, ct);
@@ -62,6 +63,13 @@ public sealed class DeviceTypesController(IDeviceTypeRepository deviceTypes, Der
         type.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         type.ExpectedIntervalSeconds = ValidInterval(request.ExpectedIntervalSeconds);
         type.SupportsCommands = request.SupportsCommands;
+        if (request.TiltAxes is not null)
+        {
+            var axes = ValidAxes(request.TiltAxes)!;
+            if (type.TiltAxes is {} existing && (existing.X != axes.X || existing.Y != axes.Y || existing.Z != axes.Z))
+                throw ApiException.Conflict("Tilt axis keys are fixed to preserve daily history. Create a new device type for a different mapping.", "TILT_AXES_FIXED");
+            type.TiltAxes = axes;
+        }
         await deviceTypes.UpdateAsync(type, ct);
         return Ok(Map(type));
     }
@@ -145,6 +153,8 @@ public sealed class DeviceTypesController(IDeviceTypeRepository deviceTypes, Der
             ApplyCalculation(p, request.Calculation);
         }
         Apply(proposed);
+        if (IsTiltAxis(type, current.Key) && proposed.Kind == ParameterKind.Derived)
+            throw ApiException.Conflict("A tilt axis must remain a measured parameter to preserve daily history.", "TILT_AXIS_IN_USE");
         Validate(type, proposed);
 
         var parameter = await deviceTypes.UpdateParameterAsync(id, parameterId, Apply, ct)
@@ -161,6 +171,8 @@ public sealed class DeviceTypesController(IDeviceTypeRepository deviceTypes, Der
         var parameter = type.Parameters.FirstOrDefault(p => p.Id == parameterId)
             ?? throw ApiException.NotFound("Parameter not found", "DEVICE_TYPE_PARAMETER_NOT_FOUND");
 
+        if (IsTiltAxis(type, parameter.Key))
+            throw ApiException.Conflict("This parameter defines a tilt axis and cannot be removed.", "TILT_AXIS_IN_USE");
         await deviceTypes.RemoveParameterAsync(id, parameterId, ct);
         // Its calculation rules would publish a value nothing defines any more.
         if (parameter.CalculationType is not null)
@@ -168,10 +180,22 @@ public sealed class DeviceTypesController(IDeviceTypeRepository deviceTypes, Der
         return NoContent();
     }
 
+    private static bool IsTiltAxis(DeviceType type, string key) => type.TiltAxes is {} axes
+        && (axes.X == key || axes.Y == key || axes.Z == key);
+
+    private static TiltAxes? ValidAxes(TiltAxes? axes)
+    {
+        if (axes is null) return null;
+        var keys = new[] { axes.X, axes.Y }.Concat(axes.Z is null ? [] : new[] { axes.Z }).ToArray();
+        if(keys.Any(k=>string.IsNullOrWhiteSpace(k)||k.Length>64) || keys.Distinct(StringComparer.OrdinalIgnoreCase).Count()!=keys.Length)
+            throw ApiException.BadRequest("Tilt axis parameter keys must be nonempty, distinct, and at most 64 characters.", "TILT_AXES_INVALID");
+        return axes;
+    }
+
     private static DeviceTypeDto Map(DeviceType t) => new(
         t.Id, t.Name, t.Description,
         t.Parameters.Select(Map).ToList(),
-        t.ExpectedIntervalSeconds, t.SupportsCommands);
+        t.ExpectedIntervalSeconds, t.SupportsCommands, t.TiltAxes);
 
     /// <summary>A reporting interval of 10 s to 7 days; null or 0 clears it.</summary>
     private static int? ValidInterval(int? seconds) => seconds switch

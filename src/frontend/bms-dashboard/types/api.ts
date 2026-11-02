@@ -1,3 +1,4 @@
+import type { TiltAxes } from "./tilt";
 export interface PagedResult<T> {
   items: T[];
   totalCount: number;
@@ -201,6 +202,7 @@ export interface DeviceTypeDto {
   expectedIntervalSeconds: number | null;
   /** False for devices with no downlink: no Commands tab, and the API refuses commands. */
   supportsCommands: boolean;
+  tiltAxes?: TiltAxes | null;
 }
 
 export interface DeviceDto {

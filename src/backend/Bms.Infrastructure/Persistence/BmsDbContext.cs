@@ -12,6 +12,8 @@ public sealed class BmsDbContext : DbContext
     public DbSet<Site> Sites => Set<Site>();
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<DeviceType> DeviceTypes => Set<DeviceType>();
+    public DbSet<TiltMonitoringSettings> TiltMonitoringSettings => Set<TiltMonitoringSettings>();
+    public DbSet<TiltDailyReading> TiltDailyReadings => Set<TiltDailyReading>();
     public DbSet<DeviceBaseline> DeviceBaselines => Set<DeviceBaseline>();
     public DbSet<Bms.Domain.Connectors.Connector> Connectors => Set<Bms.Domain.Connectors.Connector>();
     public DbSet<Bms.Domain.Connectors.ConnectorUnknownDevice> ConnectorUnknownDevices => Set<Bms.Domain.Connectors.ConnectorUnknownDevice>();
@@ -143,7 +145,19 @@ public sealed class BmsDbContext : DbContext
         });
 
         // Existing types keep accepting commands; only a type marked otherwise refuses them.
-        modelBuilder.Entity<DeviceType>(e => e.Property(x => x.SupportsCommands).HasDefaultValue(true));
+        modelBuilder.Entity<DeviceType>(e => {
+            e.Property(x => x.SupportsCommands).HasDefaultValue(true);
+            e.OwnsOne(x => x.TiltAxes, a => a.ToJson());
+        });
+        modelBuilder.Entity<TiltMonitoringSettings>(e => {
+            e.HasIndex(x => x.DeviceId).IsUnique();
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.DeviceId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.TimeZoneId).HasMaxLength(100);
+        });
+        modelBuilder.Entity<TiltDailyReading>(e => {
+            e.HasIndex(x => new { x.DeviceId, x.Date }).IsUnique();
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.DeviceId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<DeviceTypeParameter>(e =>
         {

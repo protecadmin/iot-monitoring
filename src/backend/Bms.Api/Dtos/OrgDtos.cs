@@ -34,6 +34,6 @@ public sealed record UpdateDeviceTypeParameterRequest(
 /// <param name="SupportsCommands">False for devices with no downlink — the command API refuses them.</param>
 public sealed record DeviceTypeDto(
     Guid Id, string Name, string? Description, IReadOnlyList<DeviceTypeParameterDto> Parameters,
-    int? ExpectedIntervalSeconds = null, bool SupportsCommands = true);
-public sealed record CreateDeviceTypeRequest(string Name, string? Description, int? ExpectedIntervalSeconds = null, bool SupportsCommands = true);
-public sealed record UpdateDeviceTypeRequest(string Name, string? Description, int? ExpectedIntervalSeconds = null, bool SupportsCommands = true);
+    int? ExpectedIntervalSeconds = null, bool SupportsCommands = true, Bms.Domain.Entities.TiltAxes? TiltAxes = null);
+public sealed record CreateDeviceTypeRequest(string Name, string? Description, int? ExpectedIntervalSeconds = null, bool SupportsCommands = true, Bms.Domain.Entities.TiltAxes? TiltAxes = null);
+public sealed record UpdateDeviceTypeRequest(string Name, string? Description, int? ExpectedIntervalSeconds = null, bool SupportsCommands = true, Bms.Domain.Entities.TiltAxes? TiltAxes = null);

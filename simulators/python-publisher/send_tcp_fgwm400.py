@@ -37,6 +37,8 @@ def text_line(sensor_id: str, x: float, y: float, z: float, temp: float, battery
     fields = [sensor_id, f"{x:+09.4f}", f"{y:+09.4f}", f"{z:+09.4f}",
               f"{random.uniform(-0.2, 0.2):+09.4f}", f"{random.uniform(-0.05, 0.05):+09.4f}", f"{random.uniform(0.97, 0.99):+09.4f}",
               f"{temp:+09.4f}", str(battery)]
+    if args.text_layout == "compact":
+        fields = [sensor_id, f"{x:+09.4f}", f"{y:+09.4f}", f"{temp:+09.4f}", str(battery)]
     if args.phone:
         fields.append("1440033931560")
     if args.prefix:
@@ -90,6 +92,8 @@ def main() -> None:
     p.add_argument("--port", type=int, default=12000, help="The connector's port (default 12000)")
     p.add_argument("--sensor-id", default="100000005", help="Sensor ID on the label (default 100000005)")
     p.add_argument("--format", choices=["text", "binary"], default="text", help="text (CSV with acceleration) or binary (21-byte Modbus)")
+    p.add_argument("--text-layout", choices=["extended", "compact"], default="extended", help="compact: ID,X tilt,Y tilt,temperature,battery (5 fields); extended: original 9 fields")
+    p.add_argument("--temperature", type=float, default=28.5, help="Starting sensor temperature in Celsius")
     p.add_argument("--prefix", action="store_true", help="Prefix mode: lines start with BW-NB-WM400,")
     p.add_argument("--phone", action="store_true", help="Append the phone/SIM field, as some sensors do")
     p.add_argument("--burst", type=int, default=10, help="Readings per wake-up (default 10)")
@@ -103,7 +107,7 @@ def main() -> None:
     p.add_argument("--battery", type=int, default=7, help="Battery level 0-9 (default 7)")
     args = p.parse_args()
 
-    state = {"x": args.x, "y": args.y, "z": args.z, "temp": 28.5, "battery": max(0, min(9, args.battery))}
+    state = {"x": args.x, "y": args.y, "z": args.z, "temp": args.temperature, "battery": max(0, min(9, args.battery))}
     print(f"FG-WM400 simulator -> {args.host}:{args.port}, sensor {args.sensor_id}, {args.format}, "
           f"{args.burst} readings per burst" + ("" if args.once else f", every {args.interval:g} s (Ctrl+C to stop)"))
     try:

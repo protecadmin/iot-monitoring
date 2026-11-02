@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { TiltApi } from "@/lib/api/tilt";
+import { TiltScheduleFields } from "@/components/devices/TiltScheduleFields";
 import { useApi } from "@/hooks/useApi";
 import { CalculationsApi, ConnectorsApi, DeviceTypesApi, DevicesApi, SitesApi, TenantsApi } from "@/lib/api/resources";
 import { useCan } from "@/lib/auth/permissions";
@@ -70,6 +72,15 @@ export function DeviceFormModal({
   const connectors = (connectorsQuery.data ?? []).filter((c) => c.isEnabled || c.id === connectorId);
   const connector = connectors.find((c) => c.id === connectorId);
   const chosenType = deviceTypesQuery.data?.find((t) => t.id === deviceTypeId);
+  const [tiltDraft, setTiltDraft] = useState<{ closingTime: string; timeZoneId: string } | null>(null);
+  const tiltQuery = useApi(
+    () => isEdit && chosenType?.tiltAxes ? TiltApi.get(device!.id) : Promise.resolve(undefined),
+    [isEdit, device?.id, !!chosenType?.tiltAxes],
+  );
+  const tiltClosingTime = tiltDraft?.closingTime ?? tiltQuery.data?.settings?.closingTime ?? "23:59";
+  const tiltTimeZone = tiltDraft?.timeZoneId ?? tiltQuery.data?.settings?.timeZoneId ?? "Asia/Singapore";
+  const setTiltClosingTime = (closingTime: string) => setTiltDraft({ closingTime, timeZoneId: tiltTimeZone });
+  const setTiltTimeZone = (timeZoneId: string) => setTiltDraft({ closingTime: tiltClosingTime, timeZoneId });
   // Does the connector fill this type's parameters? None at all means nothing would be stored.
   const mappedKeys = (connector?.mappings ?? []).filter((m) => m.target === "Parameter" && m.parameterKey).map((m) => m.parameterKey!.toLowerCase());
   const typeKeys = (chosenType?.parameters ?? []).filter((p) => p.kind !== "Derived").map((p) => p.key.toLowerCase());
@@ -99,6 +110,8 @@ export function DeviceFormModal({
       if (!sensorId.trim()) return setError("Enter the sensor ID the device sends (on its label)");
       if (connectorMismatch) return setError(`${connector.name} sends none of ${chosenType?.name}'s parameters — pick another connector or device type.`);
     }
+
+    if (chosenType?.tiltAxes && isEdit && (tiltQuery.loading || tiltQuery.error)) return setError(tiltQuery.error ?? "Wait for the daily tilt settings to load.");
 
     const parsedConversions = parseRows(isMqttDirect ? conversionRows : []);
     if (parsedConversions.error) return setError(parsedConversions.error);
@@ -141,6 +154,15 @@ export function DeviceFormModal({
           latitude: latNum,
           longitude: lngNum,
         });
+      }
+
+      if (chosenType?.tiltAxes) {
+        try { await TiltApi.configure(saved.id, tiltClosingTime, tiltTimeZone.trim()); }
+        catch (err) {
+          onSaved();
+          setError(`Device saved, but daily tilt settings were not saved: ${err instanceof ApiError ? err.message : "unexpected error"}. Open the device's Daily tilt tab to configure them.`);
+          return;
+        }
       }
 
       // Saved as a second call because the Calculations module owns the
@@ -328,6 +350,8 @@ export function DeviceFormModal({
             <input type="number" step="any" value={longitude} onChange={(e) => setLongitude(e.target.value)} className={inputClass} />
           </FormField>
         </div>
+
+        {chosenType?.tiltAxes && <TiltScheduleFields closingTime={tiltClosingTime} timeZoneId={tiltTimeZone} onTimeChange={setTiltClosingTime} onZoneChange={setTiltTimeZone} disabled={saving || (isEdit && tiltQuery.loading)} />}
 
         <div>
           <p className="block text-xs font-medium text-muted-foreground mb-1">Calculations</p>

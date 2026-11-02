@@ -1583,6 +1583,99 @@ namespace Bms.Infrastructure.Persistence.Migrations
                     b.ToTable("Tenants");
                 });
 
+            modelBuilder.Entity("Bms.Domain.Entities.TiltDailyReading", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CutoffAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ReadingAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("X")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Y")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Z")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("TiltDailyReadings");
+                });
+
+            modelBuilder.Entity("Bms.Domain.Entities.TiltMonitoringSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("BaselineAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("BaselineX")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("BaselineY")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("BaselineZ")
+                        .HasColumnType("double precision");
+
+                    b.Property<TimeOnly>("ClosingTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("OnboardedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId")
+                        .IsUnique();
+
+                    b.ToTable("TiltMonitoringSettings");
+                });
+
             modelBuilder.Entity("Bms.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1855,6 +1948,35 @@ namespace Bms.Infrastructure.Persistence.Migrations
                     b.Navigation("Device");
                 });
 
+            modelBuilder.Entity("Bms.Domain.Entities.DeviceType", b =>
+                {
+                    b.OwnsOne("Bms.Domain.Entities.TiltAxes", "TiltAxes", b1 =>
+                        {
+                            b1.Property<Guid>("DeviceTypeId");
+
+                            b1.Property<string>("X")
+                                .IsRequired();
+
+                            b1.Property<string>("Y")
+                                .IsRequired();
+
+                            b1.Property<string>("Z");
+
+                            b1.HasKey("DeviceTypeId");
+
+                            b1.ToTable("DeviceTypes");
+
+                            b1
+                                .ToJson("TiltAxes")
+                                .HasColumnType("jsonb");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DeviceTypeId");
+                        });
+
+                    b.Navigation("TiltAxes");
+                });
+
             modelBuilder.Entity("Bms.Domain.Entities.DeviceTypeParameter", b =>
                 {
                     b.HasOne("Bms.Domain.Entities.DeviceType", "DeviceType")
@@ -1938,6 +2060,24 @@ namespace Bms.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Bms.Domain.Entities.TiltDailyReading", b =>
+                {
+                    b.HasOne("Bms.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Bms.Domain.Entities.TiltMonitoringSettings", b =>
+                {
+                    b.HasOne("Bms.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Bms.Domain.Entities.User", b =>

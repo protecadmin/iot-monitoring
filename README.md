@@ -1,4 +1,23 @@
-# BMS — Industrial IoT Monitoring Platform
+dotnet run --project src/backend/Bms.Api --launch-profile http
+
+docker compose up -d postgres mosquitto influxdb
+dotnet run --project src/backend/Bms.Api --launch-profile http
+dotnet run --project src/backend/Bms.Ingestion
+dotnet run --project src/backend/Bms.Connectors
+cd src/frontend/bms-dashboard
+npm.cmd run dev
+
+dotnet : The term 'dotnet' is not recognized as the name of a cmdlet, function, 
+script file, or operable program. Check the spelling of the name, or if a path was 
+included, verify that the path is correct and try again.
+At line:1 char:1
++ dotnet run --project src/backend/Bms.Api --launch-profile http
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (dotnet:String) [], CommandNotFoundExce 
+   ption
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+PS D:\work\iot monitoring\Bms-main\Bms-main> # BMS — Industrial IoT Monitoring Platform
 
 A working, end-to-end Industrial IoT / Building Management System monitoring
 platform. Simulated devices talk over MQTT, TCP, HTTP, and a simulated

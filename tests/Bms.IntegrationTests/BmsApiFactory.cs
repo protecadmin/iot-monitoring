@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Bms.IntegrationTests;
 
@@ -20,11 +21,18 @@ public sealed class BmsApiFactory : WebApplicationFactory<Bms.Api.ApiMarker>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        // API tests must not take over the running application's MQTT client.
+        builder.ConfigureServices(services =>
+        {
+            foreach (var descriptor in services.Where(s => s.ServiceType == typeof(IHostedService)
+                && s.ImplementationType == typeof(Bms.Api.Realtime.RealtimeBridgeService)).ToList())
+                services.Remove(descriptor);
+        });
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:Postgres"] = "Host=localhost;Port=5432;Database=bms_platform_test;Username=bms_app;Password=devpassword",
+                ["ConnectionStrings:Postgres"] = Environment.GetEnvironmentVariable("BMS_TEST_POSTGRES") ?? "Host=localhost;Port=5432;Database=bms_platform_test;Username=bms_app;Password=devpassword",
                 ["InfluxDb:Url"] = "http://localhost:8086",
                 ["InfluxDb:Org"] = "bms-platform",
                 ["InfluxDb:Bucket"] = "telemetry",

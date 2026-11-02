@@ -17,6 +17,7 @@ public class DeviceType : Entity
 
     /// <summary>False for devices that can't receive commands (e.g. sensors with no downlink); the command API refuses them.</summary>
     public bool SupportsCommands { get; set; } = true;
+    public TiltAxes? TiltAxes { get; set; }
 
     public ICollection<DeviceTypeParameter> Parameters { get; set; } = new List<DeviceTypeParameter>();
 }

@@ -84,6 +84,7 @@ builder.Services.AddHostedService<Bms.Api.Realtime.RealtimeBridgeService>();
 // Live here, not in Bms.Ingestion — see the comment in
 // Bms.Ingestion/Program.cs for why these must not depend on that
 // process's uptime.
+builder.Services.AddHostedService<Bms.Api.Workers.TiltDailyWorker>();
 builder.Services.AddHostedService<OfflineSweepWorker>();
 builder.Services.AddHostedService<TimeoutSweepWorker>();
 

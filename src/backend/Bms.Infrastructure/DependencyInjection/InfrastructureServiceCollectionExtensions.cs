@@ -1,3 +1,4 @@
+using Bms.Application.Tilt;
 using Bms.Application.Abstractions.Ota;
 using Bms.Application.Abstractions.Notifications;
 using Bms.Application.Abstractions.Persistence;
@@ -70,6 +71,8 @@ public static class InfrastructureServiceCollectionExtensions
         // One Influx client for both: derived series are computed from the same raw
         // telemetry the store writes, so they read the same bucket.
         services.AddSingleton<InfluxTelemetryStore>();
+        services.AddSingleton<ITiltTelemetryReader>(sp => sp.GetRequiredService<InfluxTelemetryStore>());
+        services.AddScoped<ITiltMonitoringService, TiltMonitoringService>();
         services.AddSingleton<ITelemetryStore>(sp => sp.GetRequiredService<InfluxTelemetryStore>());
         services.AddSingleton<ICalculatedSeriesStore>(sp => sp.GetRequiredService<InfluxTelemetryStore>());
         services.AddSingleton<IPasswordHasher, Rfc2898PasswordHasher>();
