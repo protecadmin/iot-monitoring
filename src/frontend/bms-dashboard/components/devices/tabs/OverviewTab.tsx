@@ -4,6 +4,8 @@ import { TelemetryApi } from "@/lib/api/resources";
 import { StatCard } from "@/components/ui/States";
 import { BaselinePanel } from "@/components/devices/BaselinePanel";
 import type { DeviceDto, DeviceTypeParameterDto } from "@/types/api";
+import type { TiltAxes } from "@/types/tilt";
+import { InclinometerOverview } from "@/components/devices/InclinometerOverview";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -18,7 +20,12 @@ function fieldLabel(key: string): string {
   return key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
 }
 
-export function OverviewTab({ device, parameters = [] }: { device: DeviceDto; parameters?: DeviceTypeParameterDto[] }) {
+export function OverviewTab({ device, parameters = [], tiltAxes }: { device: DeviceDto; parameters?: DeviceTypeParameterDto[]; tiltAxes?: TiltAxes | null }) {
+  if (tiltAxes) return <InclinometerOverview device={device} parameters={parameters} axes={tiltAxes} />;
+  return <StandardOverview device={device} parameters={parameters} />;
+}
+
+function StandardOverview({ device, parameters }: { device: DeviceDto; parameters: DeviceTypeParameterDto[] }) {
   const telemetryQuery = useApi(() => TelemetryApi.latestForDevice(device.id), [device.id]);
 
   return (

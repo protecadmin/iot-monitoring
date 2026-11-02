@@ -1,11 +1,8 @@
 "use client";
 
-import { DailyTiltTab } from "@/components/devices/tabs/DailyTiltTab";
-
-
 import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Activity, Bell, CalendarDays, Box, FileCode, Info, Send, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Activity, Bell, Box, FileCode, Info, Send, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { DeviceTypesApi, DevicesApi } from "@/lib/api/resources";
 import { useCan, type Permission } from "@/lib/auth/permissions";
@@ -27,7 +24,6 @@ const TABS: { label: string; icon: LucideIcon; permission?: Permission }[] = [
   { label: "Overview", icon: Info },
   { label: "Digital Twin", icon: Box },
   { label: "Live", icon: Activity },
-  { label: "Daily tilt", icon: CalendarDays },
   { label: "Alerts", icon: Bell },
   { label: "Commands", icon: Send, permission: "technical.view" },
   { label: "Configuration", icon: SlidersHorizontal, permission: "technical.view" },
@@ -55,7 +51,7 @@ export default function DeviceDetailsPage({ params }: { params: Promise<{ device
   // Only sensor types with twin templates (components/digital-twin/designs) get the tab.
   const twin = resolveTwin(device, deviceTypeName);
   const visibleTabs = tabs.filter(
-    (t) => (t.label !== "Daily tilt" || !!deviceType?.tiltAxes) && (t.label !== "Digital Twin" || twin) && (t.label !== "Commands" || deviceType?.supportsCommands !== false),
+    (t) => (t.label !== "Digital Twin" || twin) && (t.label !== "Commands" || deviceType?.supportsCommands !== false),
   );
   const interval = deviceType?.expectedIntervalSeconds;
 
@@ -92,10 +88,9 @@ export default function DeviceDetailsPage({ params }: { params: Promise<{ device
       </div>
 
       <div>
-        {tab === "Overview" && <OverviewTab device={device} parameters={deviceType?.parameters ?? []} />}
+        {tab === "Overview" && <OverviewTab key={device.id} device={device} parameters={deviceType?.parameters ?? []} tiltAxes={deviceType?.tiltAxes} />}
         {tab === "Digital Twin" && twin && <DigitalTwinView device={device} twin={twin} deviceTypeName={deviceTypeName} onDeviceChange={setSavedDevice} />}
         {tab === "Live" && <LiveTab deviceId={device.id} parameters={deviceType?.parameters ?? []} timeSource={device.timeSource} />}
-        {tab === "Daily tilt" && deviceType?.tiltAxes && <DailyTiltTab deviceId={device.id} />}
         {tab === "Alerts" && <AlertsTab deviceId={device.id} />}
         {tab === "Commands" && tabs.some((t) => t.label === "Commands") && <CommandsTab deviceId={device.id} />}
         {tab === "Configuration" && tabs.some((t) => t.label === "Configuration") && <ConfigurationTab deviceId={device.id} />}

@@ -55,48 +55,45 @@ export function DailyTiltTab({ deviceId }: { deviceId: string }) {
   if (query.loading && !data) return <LoadingState label="Loading daily tilt readings..." />;
   if (query.error && !data) return <ErrorState message={query.error} />;
   if (!data) return null;
-  return <div className="space-y-4">
-    <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="flex items-center gap-2 text-sm font-semibold"><CalendarDays className="h-4 w-4 text-primary" />Daily tilt comparison</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{data.settings ? `Daily cutoff ${data.settings.closingTime} · ${zone}` : "Daily monitoring has not been configured for this device."}</p></div>
-        <div className="flex gap-2">
-          <button type="button" onClick={query.refetch} disabled={query.loading} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted disabled:opacity-60"><RefreshCw className="h-3.5 w-3.5" />Refresh</button>
-          {canEdit && <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground"><Settings2 className="h-3.5 w-3.5" />{data.settings ? "Edit daily settings" : "Set up daily readings"}</button>}
-        </div>
+  return <section aria-labelledby="daily-tilt-heading" className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+    <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-5">
+      <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/8 text-primary"><CalendarDays className="h-5 w-5" /></span><div><h2 id="daily-tilt-heading" className="text-base font-semibold tracking-tight">Daily tilt comparison</h2><p className="mt-1 text-xs text-muted-foreground">{data.settings ? `One reading per day · Cutoff ${data.settings.closingTime} · ${zone}` : "Choose a daily cutoff to start tracking changes."}</p></div></div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={query.refetch} disabled={query.loading} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted disabled:opacity-60"><RefreshCw className="h-3.5 w-3.5" />Refresh</button>
+        {canEdit && <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-accent-foreground hover:bg-accent/90"><Settings2 className="h-3.5 w-3.5" />{data.settings ? "Edit daily settings" : "Set up daily readings"}</button>}
       </div>
-      {data.settings && <div className="mt-4 rounded-md border border-border bg-secondary/30 p-3 text-xs">
-        <p className="font-medium">Onboarding reference{data.baseline ? ` · ${dateTime(data.baseline.readingAt)} (${zone})` : " · Waiting for the first complete tilt reading"}</p>
-        {data.baseline && <div className="mt-2 flex flex-wrap gap-6 font-mono">{AXES.map(axis => <span key={axis}>{axis.toUpperCase()}: {formatTiltNumber(data.baseline!.values[axis])}°</span>)}</div>}
-      </div>}
-    </section>
+    </div>
 
-    {data.settings && <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-      <form onSubmit={applyRange} className="flex flex-wrap items-end gap-3 border-b border-border p-4">
-        <label className="space-y-1 text-xs text-muted-foreground">From<input type="date" aria-label="Daily readings start date" value={from} onChange={e => setFrom(e.target.value)} className={inputClass} /></label>
-        <label className="space-y-1 text-xs text-muted-foreground">To<input type="date" aria-label="Daily readings end date" value={to} onChange={e => setTo(e.target.value)} className={inputClass} /></label>
-        <button type="submit" className="rounded-md border border-border px-3 py-2 text-xs hover:bg-muted">Apply dates</button>
-        <span className="pb-2 text-xs text-muted-foreground">Defaults to the last 30 days</span>
+    {data.settings && <>
+      <div className="mx-5 mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/10 bg-secondary/35 px-4 py-3">
+        <div><p className="text-xs font-semibold text-primary">Onboarding reference</p><p className="mt-1 text-[11px] text-muted-foreground">{data.baseline?dateTime(data.baseline.readingAt)+` · ${zone}`:"Waiting for the first complete tilt reading"}</p></div>
+        {data.baseline && <div className="flex flex-wrap gap-2">{AXES.map(axis=><span key={axis} className="rounded-lg border border-border/70 bg-card px-3 py-2 font-mono text-xs"><span className="mr-2 font-sans text-[10px] font-semibold text-muted-foreground">{axis.toUpperCase()}</span>{formatTiltNumber(data.baseline!.values[axis])}{data.baseline!.values[axis]!==null?"°":""}</span>)}</div>}
+      </div>
+      <form onSubmit={applyRange} className="flex flex-wrap items-end gap-3 border-t border-border bg-muted/20 px-5 py-4">
+        <label className="space-y-1 text-[11px] font-medium text-muted-foreground">From<input type="date" aria-label="Daily readings start date" value={from} onChange={e => setFrom(e.target.value)} className={inputClass} /></label>
+        <label className="space-y-1 text-[11px] font-medium text-muted-foreground">To<input type="date" aria-label="Daily readings end date" value={to} onChange={e => setTo(e.target.value)} className={inputClass} /></label>
+        <button type="submit" className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium hover:bg-muted">Apply dates</button>
+        <span className="pb-2 text-[11px] text-muted-foreground">Last 30 days by default</span>
       </form>
       {(rangeError || query.error) && <p role="alert" className="p-4 text-sm text-destructive">{rangeError || query.error}</p>}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] text-sm">
-          <thead className="bg-muted text-xs text-muted-foreground"><tr>
-            <th rowSpan={2} className="px-4 py-3 text-left">Date</th><th rowSpan={2} className="px-4 py-3 text-left">Actual received time</th>
-            <th colSpan={3} className="border-l border-border px-3 py-2">Daily reading (°)</th><th colSpan={3} className="border-l border-border px-3 py-2">Previous-day difference (°)</th><th colSpan={3} className="border-l border-border px-3 py-2">Since onboarding (°)</th>
-          </tr><tr>{["reading", "previous", "onboarding"].flatMap(group => AXES.map(axis => <th key={`${group}-${axis}`} className="border-l border-border/50 px-3 py-2 text-right">{axis.toUpperCase()}</th>))}</tr></thead>
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Daily tilt readings and differences">
+        <table className="w-full min-w-[1050px] text-sm">
+          <thead className="border-y border-border bg-muted/70 text-[11px] text-muted-foreground"><tr>
+            <th rowSpan={2} scope="col" className="px-5 py-3 text-left">Date</th><th rowSpan={2} scope="col" className="px-4 py-3 text-left">Actual received time</th>
+            <th colSpan={3} scope="colgroup" className="border-l border-border bg-primary/5 px-3 py-3 text-primary">Daily reading (°)</th><th colSpan={3} scope="colgroup" className="border-l border-border px-3 py-3">Previous-day difference (°)</th><th colSpan={3} scope="colgroup" className="border-l border-border bg-accent/5 px-3 py-3 text-accent-ink">Since onboarding (°)</th>
+          </tr><tr>{["reading", "previous", "onboarding"].flatMap(group=>AXES.map(axis=><th key={`${group}-${axis}`} scope="col" className="border-l border-border/50 px-3 pb-2 text-right font-medium">{axis.toUpperCase()}</th>))}</tr></thead>
           <tbody className="divide-y divide-border">
-            {data.rows.map(row => <tr key={row.date} className="hover:bg-secondary/30">
-              <td className="whitespace-nowrap px-4 py-3">{row.date}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{row.readingAt ? dateTime(row.readingAt) : row.status === "NoData" ? "No data" : `Pending · cutoff ${dateTime(row.cutoffAt)}`}</td>
+            {data.rows.map(row=><tr key={row.date} className="odd:bg-muted/10 hover:bg-secondary/25">
+              <td className="whitespace-nowrap px-5 py-4 text-xs font-medium">{row.date}</td>
+              <td className="whitespace-nowrap px-4 py-3 text-[11px] text-muted-foreground">{row.readingAt?dateTime(row.readingAt):<><span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-medium ${row.status==="NoData"?"bg-muted text-muted-foreground":"bg-accent-soft text-accent-ink"}`}>{row.status==="NoData"?"No data":"Pending"}</span>{row.status!=="NoData"&&<span className="mt-1 block">Closes {dateTime(row.cutoffAt)}</span>}</>}</td>
               <ValueCells values={row.reading} /><ValueCells values={row.previousDayDifference} signed /><ValueCells values={row.onboardingDifference} signed />
             </tr>)}
-            {data.rows.length === 0 && <tr><td colSpan={11} className="px-4 py-10 text-center text-sm text-muted-foreground">No daily dates in this range after onboarding. The first row will be available at the configured cutoff.</td></tr>}
+            {data.rows.length===0&&<tr><td colSpan={11} className="px-5 py-10 text-center text-sm text-muted-foreground">No daily dates in this range after onboarding. The first row will be available at the configured cutoff.</td></tr>}
           </tbody>
         </table>
       </div>
-      <p className="border-t border-border p-4 text-xs leading-5 text-muted-foreground">One last complete reading at or before the cutoff. Differences are current minus reference; a missing previous day stays blank. All times use {zone}. {data.axes.z ? "" : "This device has no Z axis; Z stays blank."}</p>
-    </section>}
-    {editing && <ScheduleEditor deviceId={deviceId} settings={data.settings} onClose={() => setEditing(false)} onSaved={query.refetch} />}
-  </div>;
+      <div className="border-t border-border px-5 py-3 text-[11px] leading-5 text-muted-foreground"><p>Differences = daily reading − reference. A missing previous day stays blank. All daily times use {zone}.</p>{!data.axes.z&&<p>This sensor has no Z axis. Z values stay blank.</p>}{data.axes.z&&data.baseline?.values.z===null&&<p>The onboarding reference has no Z reading; change since onboarding for Z stays blank.</p>}</div>
+    </>}
+    {editing&&<ScheduleEditor deviceId={deviceId} settings={data.settings} onClose={()=>setEditing(false)} onSaved={query.refetch} />}
+  </section>;
 }
