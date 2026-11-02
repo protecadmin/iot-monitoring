@@ -21,6 +21,9 @@ public static class ConnectorValidator
 
         switch (c.Framing)
         {
+            case ConnectorFraming.StartMarker when string.IsNullOrWhiteSpace(c.StartMarker) || c.StartMarker.Length > 64 || c.StartMarker.Any(ch => ch < 32 || ch > 126):
+                errors.Add("Start marker must be 1 to 64 printable ASCII characters");
+                break;
             case ConnectorFraming.FixedLength when c.FixedLength is not (> 0 and <= 65536):
                 errors.Add("Fixed length must be a number of bytes");
                 break;
@@ -28,6 +31,13 @@ public static class ConnectorValidator
                 errors.Add("End character must be exactly one character");
                 break;
         }
+
+        if (c.Framing == ConnectorFraming.StartMarker && c.Format != ConnectorFormat.Csv)
+            errors.Add("Start marker framing requires CSV format");
+        if (c.Framing == ConnectorFraming.StartMarker && c.CsvFieldCount is null)
+            errors.Add("Set the expected CSV field count for start marker framing");
+        if (c.CsvFieldCount is not null && (c.CsvFieldCount < 2 || c.CsvFieldCount > 128))
+            errors.Add("Expected CSV field count must be between 2 and 128");
 
         if (c.Format == ConnectorFormat.Binary)
         {

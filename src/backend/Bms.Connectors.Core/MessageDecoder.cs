@@ -99,6 +99,9 @@ public static class MessageDecoder
         if (connector.CsvOptionalPrefix && tokens.Count > 1 && !IsNumeric(tokens[0]) && IsNumeric(tokens[1]))
             tokens.RemoveAt(0);
 
+        if (connector.CsvFieldCount is {} expected && tokens.Count != expected)
+            throw new FormatException($"Expected {expected} CSV fields after the prefix, received {tokens.Count}; incomplete or unexpected message layout");
+
         var values = new Dictionary<string, RawValue>(StringComparer.Ordinal);
         for (var i = 0; i < tokens.Count; i++)
             values[(i + 1).ToString(CultureInfo.InvariantCulture)] = new RawValue(tokens[i]);

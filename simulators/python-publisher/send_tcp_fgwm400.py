@@ -40,10 +40,10 @@ def text_line(sensor_id: str, x: float, y: float, z: float, temp: float, battery
     if args.text_layout == "compact":
         fields = [sensor_id, f"{x:+09.4f}", f"{y:+09.4f}", f"{temp:+09.4f}", str(battery)]
     if args.phone:
-        fields.append("1440033931560")
+        fields.append(getattr(args, "phone_number", "7397097255"))
     if args.prefix:
         fields.insert(0, "BW-NB-WM400")
-    return (",".join(fields) + "\n").encode()
+    return (",".join(fields) + ("" if getattr(args, "no_newline", False) else "\n")).encode()
 
 
 def crc16_modbus(data: bytes) -> int:
@@ -96,6 +96,8 @@ def main() -> None:
     p.add_argument("--temperature", type=float, default=28.5, help="Starting sensor temperature in Celsius")
     p.add_argument("--prefix", action="store_true", help="Prefix mode: lines start with BW-NB-WM400,")
     p.add_argument("--phone", action="store_true", help="Append the phone/SIM field, as some sensors do")
+    p.add_argument("--phone-number", default="7397097255", help="Phone-number field appended with --phone")
+    p.add_argument("--no-newline", action="store_true", help="Join prefixed records without newline separators, like the real sensor")
     p.add_argument("--burst", type=int, default=10, help="Readings per wake-up (default 10)")
     p.add_argument("--gap-ms", type=int, default=200, help="Gap between readings in a burst (default 200 ms)")
     p.add_argument("--interval", type=float, default=300, help="Seconds between wake-ups (real sensor: 300)")

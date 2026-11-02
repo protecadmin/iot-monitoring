@@ -4,7 +4,7 @@
  * magnitude instead: small values keep enough digits to be meaningful.
  */
 export function measurementDecimals(parameterKey: string): number {
-  return /^(x|y|z)Deg$/i.test(parameterKey) ? 4 : 2;
+  return /^(?:[xyz]Deg|a[xyz]G)$/i.test(parameterKey) ? 4 : 2;
 }
 
 export function formatMeasurement(value: number, parameterKey?: string): string {

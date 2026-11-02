@@ -83,7 +83,7 @@ export interface ParameterCalculationDto {
 
 export type DeviceConnection = "MqttDirect" | "Connector";
 
-export type ConnectorFraming = "NewLine" | "FixedLength" | "EndCharacter" | "OnePerConnection";
+export type ConnectorFraming = "NewLine" | "FixedLength" | "EndCharacter" | "OnePerConnection" | "StartMarker";
 export type ConnectorFormat = "Csv" | "KeyValue" | "Json" | "Binary";
 export type ConnectorTarget = "SensorId" | "Time" | "Parameter" | "Ignore";
 
@@ -109,6 +109,8 @@ export interface ConnectorSettings {
   framing: ConnectorFraming;
   fixedLength: number | null;
   endCharacter: string | null;
+  startMarker?: string | null;
+  csvFieldCount?: number | null;
   maxMessageBytes: number;
   format: ConnectorFormat;
   csvSeparator: string;

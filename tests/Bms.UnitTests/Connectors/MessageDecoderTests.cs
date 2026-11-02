@@ -7,6 +7,20 @@ namespace Bms.UnitTests.Connectors;
 
 public class MessageDecoderTests
 {
+    [Fact]
+    public void PrefixCsv_ExactFieldCountRejectsTruncationAndOldCompactLayout()
+    {
+        var c = FgWm400Text(); c.CsvFieldCount = 10;
+        var complete = Decode(c, "BW-NB-WM400,100000005,-016.6001,-000.2656,+077.0541,-000.0259,-000.0290,+000.9975,+031.0773,5,7397097255");
+        Assert.True(complete.Usable);
+        Assert.Equal(77.0541, complete.Fields["zDeg"]);
+        Assert.Equal(-.0259, complete.Fields["axG"]);
+        Assert.Equal(31.0773, complete.Fields["temperature"]);
+        Assert.Equal(5, complete.Fields["batteryLevel"]);
+        Assert.False(Decode(c, "BW-NB-WM400,100000005,-016.5789,-000.2613,+077.0368,-0").Usable);
+        Assert.False(Decode(c, "100000005,-016.5923,-000.2516,+031.2983,5").Usable);
+    }
+
     /// <summary>Pro-Tec's FG-WM400 tilt sensor, text with acceleration (columns 2-9), phone in column 10.</summary>
     private static Connector FgWm400Text() => new()
     {

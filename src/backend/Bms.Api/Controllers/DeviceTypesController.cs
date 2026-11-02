@@ -66,7 +66,8 @@ public sealed class DeviceTypesController(IDeviceTypeRepository deviceTypes, Der
         if (request.TiltAxes is not null)
         {
             var axes = ValidAxes(request.TiltAxes)!;
-            if (type.TiltAxes is {} existing && (existing.X != axes.X || existing.Y != axes.Y || existing.Z != axes.Z))
+            // Adding a previously absent Z axis preserves historical null Z values.
+            if (type.TiltAxes is {} existing && (existing.X != axes.X || existing.Y != axes.Y || (existing.Z is not null && existing.Z != axes.Z)))
                 throw ApiException.Conflict("Tilt axis keys are fixed to preserve daily history. Create a new device type for a different mapping.", "TILT_AXES_FIXED");
             type.TiltAxes = axes;
         }

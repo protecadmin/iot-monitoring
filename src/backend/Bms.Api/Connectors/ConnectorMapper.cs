@@ -14,7 +14,7 @@ public static class ConnectorMapper
         c.BinaryHeaderHex, c.BinaryHeaderOffset, c.BinaryChecksum.ToString(),
         c.DeviceCodePrefix, c.IsEnabled,
         c.Mappings.Select(m => new ConnectorMappingDto(m.Source, m.Target.ToString(), m.ParameterKey, m.ByteLength, m.Signed, m.LittleEndian, m.Offset, m.Scale)).ToList(),
-        deviceCount, unmappedKeyCount, c.UpdatedAt);
+        deviceCount, unmappedKeyCount, c.UpdatedAt, c.StartMarker, c.CsvFieldCount);
 
     /// <summary>Copies a request onto a connector; unknown enum names are a 400, not a silent default.</summary>
     public static void Apply(SaveConnectorRequest r, Connector c)
@@ -27,6 +27,8 @@ public static class ConnectorMapper
         c.Framing = Parse<ConnectorFraming>(r.Framing, "framing");
         c.FixedLength = r.FixedLength;
         c.EndCharacter = string.IsNullOrEmpty(r.EndCharacter) ? null : r.EndCharacter;
+        c.StartMarker = string.IsNullOrEmpty(r.StartMarker) ? null : r.StartMarker;
+        c.CsvFieldCount = r.CsvFieldCount;
         c.MaxMessageBytes = r.MaxMessageBytes ?? 4096;
         c.Format = Parse<ConnectorFormat>(r.Format, "format");
         c.CsvSeparator = string.IsNullOrEmpty(r.CsvSeparator) ? "," : r.CsvSeparator;

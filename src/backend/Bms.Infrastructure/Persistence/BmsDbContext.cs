@@ -93,6 +93,7 @@ public sealed class BmsDbContext : DbContext
             e.Property(x => x.BinaryChecksum).HasConversion<string>().HasMaxLength(24);
             e.Property(x => x.DeviceCodePrefix).HasMaxLength(24);
             e.Property(x => x.EndCharacter).HasMaxLength(4);
+            e.Property(x => x.StartMarker).HasMaxLength(64);
             e.Property(x => x.CsvSeparator).HasMaxLength(4);
             e.Property(x => x.PairSeparator).HasMaxLength(4);
             e.Property(x => x.KeyValueSeparator).HasMaxLength(4);

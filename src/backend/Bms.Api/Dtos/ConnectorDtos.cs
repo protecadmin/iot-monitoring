@@ -11,14 +11,16 @@ public sealed record ConnectorDto(
     string Format, string CsvSeparator, bool CsvOptionalPrefix, string PairSeparator, string KeyValueSeparator,
     string? BinaryHeaderHex, int BinaryHeaderOffset, string BinaryChecksum,
     string DeviceCodePrefix, bool IsEnabled, IReadOnlyList<ConnectorMappingDto> Mappings,
-    int DeviceCount = 0, int UnmappedKeyCount = 0, DateTimeOffset? UpdatedAt = null);
+    int DeviceCount = 0, int UnmappedKeyCount = 0, DateTimeOffset? UpdatedAt = null,
+    string? StartMarker = null, int? CsvFieldCount = null);
 
 public sealed record SaveConnectorRequest(
     string Name, string? Vendor, Guid? DefaultDeviceTypeId,
     string Protocol, int Port, string Framing, int? FixedLength, string? EndCharacter, int? MaxMessageBytes,
     string Format, string? CsvSeparator, bool CsvOptionalPrefix, string? PairSeparator, string? KeyValueSeparator,
     string? BinaryHeaderHex, int BinaryHeaderOffset, string? BinaryChecksum,
-    string DeviceCodePrefix, bool IsEnabled, IReadOnlyList<ConnectorMappingDto> Mappings);
+    string DeviceCodePrefix, bool IsEnabled, IReadOnlyList<ConnectorMappingDto> Mappings,
+    string? StartMarker = null, int? CsvFieldCount = null);
 
 /// <param name="SampleIsHex">The sample is binary, written as hex ("01 03 10 4E DF ...").</param>
 public sealed record TestConnectorRequest(SaveConnectorRequest Connector, string Sample, bool SampleIsHex);

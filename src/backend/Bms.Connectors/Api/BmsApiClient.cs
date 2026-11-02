@@ -43,6 +43,8 @@ public sealed class BmsApiClient(HttpClient http)
         Framing = Enum.Parse<ConnectorFraming>(c.Framing, true),
         FixedLength = c.FixedLength,
         EndCharacter = c.EndCharacter,
+        StartMarker = c.StartMarker,
+        CsvFieldCount = c.CsvFieldCount,
         MaxMessageBytes = c.MaxMessageBytes,
         Format = Enum.Parse<ConnectorFormat>(c.Format, true),
         CsvSeparator = c.CsvSeparator,
@@ -75,7 +77,7 @@ public sealed class BmsApiClient(HttpClient http)
         Guid Id, string Name, string? Vendor, string Protocol, int Port, string Framing, int? FixedLength, string? EndCharacter, int MaxMessageBytes,
         string Format, string CsvSeparator, bool CsvOptionalPrefix, string PairSeparator, string KeyValueSeparator,
         string? BinaryHeaderHex, int BinaryHeaderOffset, string BinaryChecksum, string DeviceCodePrefix, bool IsEnabled,
-        List<MappingDto> Mappings, DateTimeOffset? UpdatedAt);
+        List<MappingDto> Mappings, DateTimeOffset? UpdatedAt, string? StartMarker = null, int? CsvFieldCount = null);
 }
 
 public sealed record DeviceRoute(string DeviceCode, string TenantSlug, string SiteCode)

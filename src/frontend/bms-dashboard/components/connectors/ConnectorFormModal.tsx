@@ -18,6 +18,7 @@ import type {
 } from "@/types/api";
 
 const FRAMINGS: { value: ConnectorFraming; label: string }[] = [
+  { value: "StartMarker", label: "Start marker — joined records begin with the same text" },
   { value: "NewLine", label: "New line — one message per line" },
   { value: "FixedLength", label: "Fixed length — every message is N bytes" },
   { value: "EndCharacter", label: "End character — a message ends with a chosen character" },
@@ -40,6 +41,8 @@ const DEFAULTS: ConnectorSettings = {
   framing: "NewLine",
   fixedLength: null,
   endCharacter: null,
+  startMarker: null,
+  csvFieldCount: null,
   maxMessageBytes: 4096,
   format: "Csv",
   csvSeparator: ",",
@@ -274,7 +277,7 @@ export function ConnectorFormModal({ connector, onClose, onSaved }: { connector?
                 value={s.format}
                 onChange={(e) => {
                   const format = e.target.value as ConnectorFormat;
-                  update({ format, framing: format === "Binary" && s.framing === "NewLine" ? "FixedLength" : s.framing });
+                  update({ format, framing: format === "Binary" && (s.framing === "NewLine" || s.framing === "StartMarker") ? "FixedLength" : format !== "Csv" && s.framing === "StartMarker" ? "NewLine" : s.framing });
                   setSampleIsHex(format === "Binary");
                 }}
                 className={inputClass}
@@ -288,6 +291,12 @@ export function ConnectorFormModal({ connector, onClose, onSaved }: { connector?
               <p className="text-xs text-muted-foreground mt-1">{FORMATS.find((f) => f.value === s.format)?.hint}</p>
             </FormField>
 
+            {s.framing === "StartMarker" && (
+              <FormField label="Record start marker">
+                <input required maxLength={64} value={s.startMarker ?? ""} onChange={(e) => update({ startMarker: e.target.value || null })} placeholder="BW-NB-WM400," className={inputClass} />
+                <p className="mt-1 text-xs text-muted-foreground">Each marker starts a record. The final record is read when the device disconnects.</p>
+              </FormField>
+            )}
             {s.framing === "FixedLength" && (
               <FormField label="Message length (bytes)">
                 <input type="number" min={1} value={s.fixedLength ?? ""} onChange={(e) => update({ fixedLength: e.target.value ? Number(e.target.value) : null })} className={inputClass} />
@@ -303,6 +312,10 @@ export function ConnectorFormModal({ connector, onClose, onSaved }: { connector?
               <>
                 <FormField label="Separator">
                   <input maxLength={4} value={s.csvSeparator} onChange={(e) => update({ csvSeparator: e.target.value })} className={inputClass} />
+                </FormField>
+                <FormField label="Expected field count after removing the prefix">
+                  <input type="number" min={2} max={128} required={s.framing === "StartMarker"} value={s.csvFieldCount ?? ""} onChange={(e) => update({ csvFieldCount: e.target.value ? Number(e.target.value) : null })} placeholder="Optional, e.g. 10" className={inputClass} />
+                  <p className="mt-1 text-xs text-muted-foreground">Rejects incomplete records or an unexpected layout.</p>
                 </FormField>
                 <label className="flex items-center gap-2 text-sm text-foreground self-center">
                   <input type="checkbox" checked={s.csvOptionalPrefix} onChange={(e) => update({ csvOptionalPrefix: e.target.checked })} />

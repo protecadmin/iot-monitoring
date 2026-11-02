@@ -1,4 +1,5 @@
 using Bms.Domain.Connectors;
+using System.Text;
 
 namespace Bms.Connectors.Core;
 
@@ -11,6 +12,8 @@ namespace Bms.Connectors.Core;
 public sealed class MessageFramer(Connector connector)
 {
     private readonly List<byte> _pending = new(512);
+    private readonly byte[] _marker = Encoding.ASCII.GetBytes(connector.StartMarker ?? string.Empty);
+    private bool _inFrame;
     private readonly byte? _end = connector.Framing switch
     {
         ConnectorFraming.NewLine => (byte)'\n',
@@ -24,6 +27,11 @@ public sealed class MessageFramer(Connector connector)
         var output = new List<FramedMessage>();
         foreach (var b in data)
         {
+            if (connector.Framing == ConnectorFraming.StartMarker)
+            {
+                FeedMarker(b, output);
+                continue;
+            }
             if (_end is { } end && b == end)
             {
                 Emit(output);
@@ -53,10 +61,53 @@ public sealed class MessageFramer(Connector connector)
     {
         if (_pending.Count == 0)
             return null;
-        var incomplete = connector.Framing == ConnectorFraming.FixedLength;
+        var incomplete = connector.Framing == ConnectorFraming.FixedLength
+            || (connector.Framing == ConnectorFraming.StartMarker && (!_inFrame || EndsWithPartialMarker()));
         var message = new FramedMessage([.. _pending], Incomplete: incomplete);
         _pending.Clear();
         return Clean(message);
+    }
+
+    private void FeedMarker(byte b, List<FramedMessage> output)
+    {
+        // Some firmware includes CR/LF and some joins records directly.
+        if (b is (byte)'\r' or (byte)'\n')
+        {
+            if (_pending.Count > 0)
+            {
+                if (Clean(new FramedMessage([.. _pending], Incomplete: !_inFrame || EndsWithPartialMarker())) is {} line) output.Add(line);
+                _pending.Clear();
+            }
+            _inFrame = false;
+            return;
+        }
+        _pending.Add(b);
+        if (_marker.Length > 0 && EndsWith(_marker.Length))
+        {
+            var preceding = _pending.Count - _marker.Length;
+            if (preceding > 0 && Clean(new FramedMessage(_pending.Take(preceding).ToArray(), Incomplete: !_inFrame)) is {} message)
+                output.Add(message);
+            _pending.Clear(); _pending.AddRange(_marker); _inFrame = true;
+        }
+        // Allow space for a split marker following a maximum-size record.
+        else if (_pending.Count > connector.MaxMessageBytes + _marker.Length)
+        {
+            output.Add(new FramedMessage([.. _pending], Oversize: true));
+            _pending.Clear(); _inFrame = false;
+        }
+    }
+
+    private bool EndsWith(int length)
+    {
+        if (_pending.Count < length) return false;
+        for (var i = 0; i < length; i++) if (_pending[_pending.Count - length + i] != _marker[i]) return false;
+        return true;
+    }
+
+    private bool EndsWithPartialMarker()
+    {
+        for (var n = Math.Min(_marker.Length - 1, _pending.Count); n > 0; n--) if (EndsWith(n)) return true;
+        return false;
     }
 
     private void Emit(List<FramedMessage> output)

@@ -43,6 +43,9 @@ namespace Bms.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("CsvFieldCount")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("CsvOptionalPrefix")
                         .HasColumnType("boolean");
 
@@ -104,6 +107,10 @@ namespace Bms.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
+
+                    b.Property<string>("StartMarker")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");

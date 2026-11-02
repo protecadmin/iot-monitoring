@@ -26,6 +26,8 @@ public class Connector : Entity
     public int? FixedLength { get; set; }
     /// <summary>The character that ends a message, for <see cref="ConnectorFraming.EndCharacter"/>.</summary>
     public string? EndCharacter { get; set; }
+    /// <summary>Text marking the start of each record in a joined stream.</summary>
+    public string? StartMarker { get; set; }
     public int MaxMessageBytes { get; set; } = 4096;
 
     public ConnectorFormat Format { get; set; } = ConnectorFormat.Csv;
@@ -34,6 +36,8 @@ public class Connector : Entity
     public string CsvSeparator { get; set; } = ",";
     /// <summary>CSV: skip a leading text label (e.g. "BW-NB-WM400,") when the next value is the numeric ID.</summary>
     public bool CsvOptionalPrefix { get; set; }
+    /// <summary>Optional exact number of CSV fields after removing the text prefix.</summary>
+    public int? CsvFieldCount { get; set; }
 
     /// <summary>Key = value: between pairs (";") and between a key and its value ("=").</summary>
     public string PairSeparator { get; set; } = ";";
@@ -90,7 +94,9 @@ public enum ConnectorFraming
     /// <summary>A message ends at EndCharacter.</summary>
     EndCharacter,
     /// <summary>The device connects, sends one message, and disconnects.</summary>
-    OnePerConnection
+    OnePerConnection,
+    /// <summary>A new marker starts each record; the last record ends when the connection closes.</summary>
+    StartMarker
 }
 
 public enum ConnectorFormat

@@ -79,6 +79,18 @@ public sealed class TiltConsistencyTests
     }
 
     [Fact]
+    public async Task AddingPreviouslyAbsentZPreservesTheSavedReferenceAndHistory()
+    {
+        using var h=await Harness.Create(); await h.Process(); var before=await h.Summary();
+        await h.Post<Bms.Api.Dtos.DeviceTypeParameterDto>($"/api/device-types/{h.Type.Id}/parameters",new{key="inclZ",label="Z inclination",unit="degrees"});
+        (await h.Http.PutAsJsonAsync($"/api/device-types/{h.Type.Id}",new{name=h.Type.Name,tiltAxes=new{x="inclX",y="inclY",z="inclZ"}})).EnsureSuccessStatusCode();
+        var after=await h.Summary();Assert.Equal("inclZ",after.Axes.Z);Assert.Equal(before.Baseline,after.Baseline);
+        Assert.Equal(before.Rows.Single(r=>r.Status=="Complete"),after.Rows.Single(r=>r.Status=="Complete"));
+        Assert.Null(after.Baseline!.Values.Z);
+        Assert.Equal(HttpStatusCode.Conflict,(await h.Http.PutAsJsonAsync($"/api/device-types/{h.Type.Id}",new{name=h.Type.Name,tiltAxes=new{x="inclX",y="inclY",z="differentZ"}})).StatusCode);
+    }
+
+    [Fact]
     public async Task TiltAxisMeaningCannotBeRemappedDeletedOrMadeDerived()
     {
         using var h=await Harness.Create();
