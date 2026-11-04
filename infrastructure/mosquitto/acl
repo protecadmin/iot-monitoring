@@ -66,3 +66,7 @@ pattern readwrite iot/%u/+/+/#
 # Platform policy: every authenticated user can observe all gateway traffic.
 # This global read rule does not grant permission to publish gateway messages.
 pattern read protec/gateway/#
+pattern write protec/gateway/#
+
+pattern read protec/hubs/#
+pattern write protec/hubs/#
