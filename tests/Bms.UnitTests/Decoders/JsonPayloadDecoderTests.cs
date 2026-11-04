@@ -51,6 +51,22 @@ public class JsonPayloadDecoderTests
         Assert.Equal(42, result.SequenceNumber);
     }
 
+    [Fact]
+    public void Decode_ProtecEnvelope_ExtractsMeasurementsAndUnixTimestamp()
+    {
+        var raw = Encoding.UTF8.GetBytes("""{"v":1,"type":"measurement","device_id":"860738070588839","sequence":1734,"timestamp_utc":1793770440,"values":{"layout":"xyz","mode":"acceleration","x":0.1,"y":-0.2,"z":0.9},"units":{"x":"m/s2"}}""");
+
+        var result = _decoder.Decode(raw);
+
+        Assert.Equal("860738070588839", result.DeviceIdentifierHint);
+        Assert.Equal(1734, result.SequenceNumber);
+        Assert.Equal(0.1, result.Fields["x"]);
+        Assert.Equal(-0.2, result.Fields["y"]);
+        Assert.Equal(0.9, result.Fields["z"]);
+        Assert.Equal(0.1, result.Fields["values.x"]);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1793770440), result.DeviceTimestamp);
+    }
+
     [Theory]
     [InlineData("""{"t":1,"ts":"2026-10-23T05:00:00Z","tsSource":"received"}""", true)]
     [InlineData("""{"t":1,"ts":"2026-10-23T05:00:00Z","tsSource":"RECEIVED"}""", true)]

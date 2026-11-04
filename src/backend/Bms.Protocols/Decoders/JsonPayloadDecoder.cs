@@ -14,7 +14,7 @@ namespace Bms.Protocols.Decoders;
 public sealed class JsonPayloadDecoder : IPayloadDecoder
 {
     private static readonly string[] SequenceKeys = ["seq", "sequence", "sequenceNumber"];
-    private static readonly string[] TimestampKeys = ["timestamp", "ts", "time"];
+    private static readonly string[] TimestampKeys = ["timestamp", "ts", "time", "timestamp_utc"];
 
     public PayloadFormat Format => PayloadFormat.Json;
 
@@ -23,6 +23,20 @@ public sealed class JsonPayloadDecoder : IPayloadDecoder
         using var document = JsonDocument.Parse(raw);
         var fields = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         Flatten(document.RootElement, prefix: null, fields);
+
+        // Protec's standard MQTT envelope keeps measurements under `values`.
+        // Preserve the flattened keys for generic mappings, while also exposing
+        // the measurement names at the top level for device parameters such as
+        // x/y/z, temperature, and batteryLevel.
+        if (document.RootElement.TryGetProperty("values", out var values)
+            && values.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in values.EnumerateObject())
+            {
+                if (property.Value.ValueKind is JsonValueKind.Number)
+                    fields.TryAdd(property.Name, property.Value.GetDouble());
+            }
+        }
 
         long? sequence = null;
         foreach (var key in SequenceKeys)
@@ -38,17 +52,33 @@ public sealed class JsonPayloadDecoder : IPayloadDecoder
                 timestamp = parsed;
                 break;
             }
+
+            if (fields.TryGetValue(key, out v) && v is double unix)
+            {
+                try
+                {
+                    timestamp = unix > 10_000_000_000
+                        ? DateTimeOffset.FromUnixTimeMilliseconds((long)unix)
+                        : DateTimeOffset.FromUnixTimeSeconds((long)unix);
+                    break;
+                }
+                catch (ArgumentOutOfRangeException) { }
+            }
         }
 
         return new DecodedPayload
         {
             Fields = fields,
+            DeviceIdentifierHint = GetString(fields, "device_id") ?? GetString(fields, "deviceId") ?? GetString(fields, "id"),
             SequenceNumber = sequence,
             DeviceTimestamp = timestamp,
             TimestampIsArrival = fields.TryGetValue("tsSource", out var source) && source is string text
                                  && string.Equals(text, "received", StringComparison.OrdinalIgnoreCase)
         };
     }
+
+    private static string? GetString(IReadOnlyDictionary<string, object?> fields, string key) =>
+        fields.TryGetValue(key, out var value) ? value as string : null;
 
     private static void Flatten(JsonElement element, string? prefix, Dictionary<string, object?> into)
     {

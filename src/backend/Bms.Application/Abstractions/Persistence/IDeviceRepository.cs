@@ -15,6 +15,8 @@ public sealed class DeviceFilter : PageRequest
 
 public interface IDeviceRepository
 {
+    Task<Device?> GetByMqttTopicAsync(string topic, CancellationToken ct);
+    Task<IReadOnlyList<string>> ListMqttTopicsAsync(CancellationToken ct);
     Task<Device?> GetByIdAsync(Guid id, CancellationToken ct);
     Task<Device?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct);
     Task<Device?> GetByCodeAsync(Guid tenantId, string deviceCode, CancellationToken ct);

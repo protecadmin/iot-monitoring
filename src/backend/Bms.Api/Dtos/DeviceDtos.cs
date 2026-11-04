@@ -18,7 +18,9 @@ public sealed record DeviceDto(
     string? SensorId = null,
     DateOnly? InstalledOn = null,
     string? MountingLocation = null,
-    IReadOnlyList<DeviceValueConversionDto>? ValueConversions = null);
+    IReadOnlyList<DeviceValueConversionDto>? ValueConversions = null,
+    string? MqttTelemetryTopic = null,
+    string? EffectiveMqttTelemetryTopic = null);
 
 /// <summary>value = (raw - Offset) * Scale, applied to an MQTT-direct device's parameter before it is stored.</summary>
 public sealed record DeviceValueConversionDto(string ParameterKey, double Offset, double Scale);
@@ -37,12 +39,12 @@ public sealed record CreateDeviceRequest(
     string DeviceCode, string Name, string? SerialNumber, string? Manufacturer, string? Model,
     double? Latitude, double? Longitude, Guid? GatewayId,
     DeviceConnection Connection = DeviceConnection.MqttDirect, Guid? ConnectorId = null, string? SensorId = null,
-    DateOnly? InstalledOn = null, string? MountingLocation = null);
+    DateOnly? InstalledOn = null, string? MountingLocation = null, string? MqttTelemetryTopic = null);
 
 public sealed record UpdateDeviceRequest(
     string Name, string? SerialNumber, string? Manufacturer, string? Model,
     double? Latitude, double? Longitude, Guid? GatewayId,
-    DateOnly? InstalledOn = null, string? MountingLocation = null);
+    DateOnly? InstalledOn = null, string? MountingLocation = null, string? MqttTelemetryTopic = null);
 
 /// <summary>When devices go Online/Offline — shown on the heartbeat guide.</summary>
 public sealed record DeviceLifecycleSettingsDto(

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getValidAccessToken } from "@/lib/api/client";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:5000";
+const REALTIME_ENABLED = process.env.NEXT_PUBLIC_ENABLE_REALTIME !== "false";
 
 export type RealtimeEvent =
   | "TelemetryUpdated"
@@ -36,7 +37,7 @@ export function useRealtime(handlers: Partial<Record<RealtimeEvent, (payload: un
   });
 
   useEffect(() => {
-    if (!accessToken) return;
+    if (!accessToken || !REALTIME_ENABLED) return;
 
     const connection = new signalR.HubConnectionBuilder()
       // A function, not the accessToken captured above: SignalR calls it again

@@ -39,4 +39,18 @@ EOF
 
 echo "mosquitto entrypoint: autosave_interval=${AUTOSAVE_INTERVAL}s max_queued_messages=${MAX_QUEUED_MESSAGES} max_queued_bytes=${MAX_QUEUED_BYTES} persistent_client_expiration=${PERSISTENT_CLIENT_EXPIRATION}"
 
-exec /usr/sbin/mosquitto -c /etc/mosquitto/mosquitto.conf
+# Upgrade only the previously shipped ACL query, preserving secrets and any
+# bespoke queries. The source config is a read-only mount; render a private copy.
+# MqttAllowedTopics is created by the API's AddDeviceMqttTelemetryTopic migration.
+RUNTIME_CONFIG=$(mktemp /tmp/mosquitto-bms.XXXXXX.conf)
+awk '
+{ sub(/\r$/, "") }
+$0 == "auth_opt_pg_aclquery select \047iot/\047 || \"Username\" || \047/+/+/#\047 from \"MqttCredentials\" where \"Username\" = $1" {
+    print "auth_opt_pg_aclquery select \"Topic\" from \"MqttAllowedTopics\" where \"Username\" = $1 and $2::integer in (1, 2, 4)"
+    next
+}
+{ print }
+' /etc/mosquitto/mosquitto.conf > "$RUNTIME_CONFIG"
+chmod 640 "$RUNTIME_CONFIG"
+chown root:mosquitto "$RUNTIME_CONFIG"
+exec /usr/sbin/mosquitto -c "$RUNTIME_CONFIG"

@@ -83,6 +83,8 @@ export function ConfigurationGuideModal({
   const tenantSlug = tenantQuery.data?.slug ?? "{tenant}";
   const siteCode = siteQuery.data?.code ?? "{site}";
   const prefix = `iot/${tenantSlug}/${siteCode}/${device?.deviceCode ?? "{device}"}`;
+  const measurementTopic = device?.effectiveMqttTelemetryTopic ?? device?.mqttTelemetryTopic
+    ?? (device?.connection === "Connector" ? `${prefix}/telemetry` : `protec/gateway/${device?.deviceCode ?? "{gatewayId}"}/measurement`);
 
   return (
     <Modal title={`Configuration guide${device ? ` — ${device.name} (${device.deviceCode})` : ""}`} onClose={onClose} size="xl">
@@ -102,7 +104,7 @@ export function ConfigurationGuideModal({
         </div>
 
         {tab === "Overview" && <OverviewTab prefix={prefix} values={values} version={version} />}
-        {tab === "Reporting interval" && <ReportingTab prefix={prefix} values={values} settings={settingsQuery.data} />}
+        {tab === "Reporting interval" && <ReportingTab measurementTopic={measurementTopic} values={values} settings={settingsQuery.data} />}
         {tab === "Heartbeat & status" && (
           <HeartbeatTab prefix={prefix} tenantSlug={tenantSlug} device={device} heartbeat={values.heartbeatIntervalSeconds} settings={settingsQuery.data} />
         )}
@@ -188,7 +190,7 @@ function OverviewTab({ prefix, values, version }: { prefix: string; values: Conf
   );
 }
 
-function ReportingTab({ prefix, values, settings }: { prefix: string; values: ConfigurationValues; settings: DeviceLifecycleSettingsDto | undefined }) {
+function ReportingTab({ measurementTopic, values, settings }: { measurementTopic: string; values: ConfigurationValues; settings: DeviceLifecycleSettingsDto | undefined }) {
   const interval = values.reportingIntervalSeconds;
   const perHour = interval > 0 ? Math.round(3600 / interval) : 0;
   const noTelemetry = settings?.noTelemetryAlertAfterSeconds ?? 120;
@@ -204,7 +206,7 @@ function ReportingTab({ prefix, values, settings }: { prefix: string; values: Co
         <p className="text-xs text-muted-foreground">
           Every <span className="font-medium text-foreground">{formatSeconds(interval)}</span> — about {perHour.toLocaleString()} readings an hour:
         </p>
-        <CodeBlock label="Topic" value={`${prefix}/telemetry`} />
+        <CodeBlock label="Topic" value={measurementTopic} />
         <CodeBlock label="Message (example — the keys are the parameter keys of the device's type)" value={`{"temperature": 24.6, "humidity": 58.2, "seq": 1790656201}`} />
         <p className="text-xs text-muted-foreground">
           <code className="font-mono">seq</code> must change with every reading — BMS rejects a repeated one as a duplicate. Keys that aren&apos;t a parameter of the

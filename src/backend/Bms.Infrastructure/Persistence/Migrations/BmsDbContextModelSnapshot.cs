@@ -733,6 +733,10 @@ namespace Bms.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("MqttTelemetryTopic")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
@@ -800,6 +804,9 @@ namespace Bms.Infrastructure.Persistence.Migrations
                     b.HasIndex("DeviceTypeId");
 
                     b.HasIndex("GatewayId");
+
+                    b.HasIndex("MqttTelemetryTopic")
+                        .IsUnique();
 
                     b.HasIndex("SiteId");
 
@@ -1170,29 +1177,55 @@ namespace Bms.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<double?>("BatteryPct")
+                        .HasColumnType("double precision");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("FirmwareVersion")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GatewayCode")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<string>("IpAddress")
                         .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("LastMeasurementAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("LastSeenAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
-                    b.Property<Guid>("SiteId")
+                    b.Property<int?>("Rssi")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("SiteId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("TenantId")
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GatewayCode")
+                        .IsUnique();
 
                     b.HasIndex("SiteId");
 
@@ -1862,7 +1895,7 @@ namespace Bms.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.HasOne("Bms.Domain.Entities.Gateway", "Gateway")
-                        .WithMany()
+                        .WithMany("Devices")
                         .HasForeignKey("GatewayId")
                         .OnDelete(DeleteBehavior.SetNull);
 
@@ -2030,8 +2063,7 @@ namespace Bms.Infrastructure.Persistence.Migrations
                     b.HasOne("Bms.Domain.Entities.Site", "Site")
                         .WithMany()
                         .HasForeignKey("SiteId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Site");
                 });
@@ -2124,6 +2156,11 @@ namespace Bms.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Bms.Domain.Entities.Firmware", b =>
                 {
                     b.Navigation("Deployments");
+                });
+
+            modelBuilder.Entity("Bms.Domain.Entities.Gateway", b =>
+                {
+                    b.Navigation("Devices");
                 });
 
             modelBuilder.Entity("Bms.Domain.Entities.Role", b =>

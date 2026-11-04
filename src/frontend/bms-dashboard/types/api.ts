@@ -208,6 +208,8 @@ export interface DeviceTypeDto {
 }
 
 export interface DeviceDto {
+  mqttTelemetryTopic?: string | null;
+  effectiveMqttTelemetryTopic?: string | null;
   id: string;
   tenantId: string;
   siteId: string;
@@ -430,12 +432,19 @@ export interface MqttCredentialDto {
 
 export interface GatewayDto {
   id: string;
-  tenantId: string;
-  siteId: string;
+  tenantId: string | null;
+  siteId: string | null;
   siteName: string;
   name: string;
+  gatewayCode: string;
+  status: string;
   ipAddress: string | null;
+  firmwareVersion?: string | null;
+  rssi?: number | null;
+  batteryPct?: number | null;
   lastSeenAt: string | null;
+  lastMeasurementAt?: string | null;
+  deviceNames?: string[];
 }
 
 export interface SmtpSettingsDto {

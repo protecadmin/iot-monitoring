@@ -3,7 +3,10 @@
 # usernames and topic patterns), unlike passwd, so this file is committed
 # directly rather than generated from a .example template.
 #
-# Tenant isolation: device-facing credentials are one per tenant (username
+# Gateway measurement reads are shared across all authenticated MQTT users.
+# Publishing remains limited to the owning company's registered topics.
+#
+# Legacy iot/ isolation: device-facing credentials are one per tenant (username
 # == tenant slug, e.g. "whirlpool"), and the `pattern` rule below expands
 # %u to the connecting username — so a device authenticated as "whirlpool"
 # can only touch topics under iot/whirlpool/#, never
@@ -24,6 +27,9 @@
 # iot/# namespace, not just one tenant's.
 user bms-ingestion
 topic readwrite iot/#
+# The trusted ingestion worker subscribes to each registered custom topic.
+# This does not grant device-facing credentials access to other companies.
+topic read #
 topic readwrite bms/realtime/events
 # Its own retained liveness status (heartbeat + Last Will).
 topic write bms/ingestion/bms-ingestion/status
@@ -48,6 +54,15 @@ topic write iot/+/+/+/firmware
 user bms-connectors
 topic write iot/+/+/+/telemetry
 
+# Platform operations: observe every gateway's messages. Provision this
+# separate account in the private password file; it cannot publish gateway data.
+user protec-platform-monitor
+topic read protec/gateway/#
+
 # Per-tenant device credentials (see passwd.example for how these are
 # created) — %u is substituted with the connecting username.
 pattern readwrite iot/%u/+/+/#
+
+# Platform policy: every authenticated user can observe all gateway traffic.
+# This global read rule does not grant permission to publish gateway messages.
+pattern read protec/gateway/#

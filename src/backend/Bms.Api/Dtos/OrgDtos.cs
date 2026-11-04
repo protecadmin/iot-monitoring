@@ -8,9 +8,13 @@ public sealed record SiteDto(Guid Id, Guid TenantId, string Code, string Name, s
 public sealed record CreateSiteRequest(string Code, string Name, string? Address, double? Latitude, double? Longitude);
 public sealed record UpdateSiteRequest(string Name, string? Address, double? Latitude, double? Longitude);
 
-public sealed record GatewayDto(Guid Id, Guid TenantId, Guid SiteId, string SiteName, string Name, string? IpAddress, DateTimeOffset? LastSeenAt);
-public sealed record CreateGatewayRequest(Guid SiteId, string Name, string? IpAddress);
-public sealed record UpdateGatewayRequest(string Name, string? IpAddress);
+public sealed record GatewayDto(Guid Id, Guid? TenantId, Guid? SiteId, string SiteName, string Name, string? IpAddress, DateTimeOffset? LastSeenAt,
+    string GatewayCode = "", string Status = "Standalone", DateTimeOffset? LastMeasurementAt = null, string? FirmwareVersion = null,
+    int? Rssi = null, double? BatteryPct = null, IReadOnlyList<string>? DeviceNames = null);
+public sealed record CreateGatewayRequest(Guid? SiteId, string Name, string? IpAddress, string? GatewayCode = null,
+    string? FirmwareVersion = null, int? Rssi = null, double? BatteryPct = null);
+public sealed record UpdateGatewayRequest(string Name, string? IpAddress, string? FirmwareVersion = null, int? Rssi = null, double? BatteryPct = null);
+public sealed record GatewayAvailableDto(Guid Id, string GatewayCode, string Name, string Status, Guid? TenantId, Guid? SiteId);
 
 /// <summary>How a Derived parameter is calculated, for every tenant. Type is the API name: FORMULA or TOTALIZER_DELTA.</summary>
 /// <param name="WindowSeconds">The averaging period, for a windowed type. Null takes the default (see Bms.Domain.Calculations.LevelWindow).</param>

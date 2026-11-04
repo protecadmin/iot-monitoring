@@ -47,6 +47,7 @@ import type {
   ConnectorUnknownDeviceDto,
   ConnectorUnmappedKeyDto,
   ConnectorServiceStatusDto,
+  GatewayDto,
 } from "@/types/api";
 
 export const AuthApi = {
@@ -142,6 +143,16 @@ export const ConnectorsApi = {
   dismissUnknown: (id: string, sensorId: string) => api.delete<void>(`/api/connectors/${id}/unknown-devices/${encodeURIComponent(sensorId)}`),
   unmappedKeys: (id: string) => api.get<ConnectorUnmappedKeyDto[]>(`/api/connectors/${id}/unmapped-keys`),
   serviceStatus: () => api.get<ConnectorServiceStatusDto>("/api/connectors/service-status"),
+};
+
+export const GatewaysApi = {
+  list: (params: { search?: string; status?: string; tenantId?: string; page?: number; pageSize?: number } = {}) =>
+    api.get<PagedResult<GatewayDto>>(`/api/gateways${toQuery(params)}`),
+  available: (tenantId?: string, siteId?: string) => api.get<GatewayDto[]>(`/api/gateways/available${toQuery({ tenantId, siteId })}`),
+  get: (id: string) => api.get<GatewayDto>(`/api/gateways/${id}`),
+  create: (body: { gatewayCode: string; name: string; ipAddress?: string; firmwareVersion?: string }) => api.post<GatewayDto>("/api/gateways", body),
+  update: (id: string, body: { name: string; ipAddress?: string; firmwareVersion?: string }) => api.put<GatewayDto>(`/api/gateways/${id}`, body),
+  remove: (id: string) => api.delete<void>(`/api/gateways/${id}`),
 };
 
 export const DeviceBaselinesApi = {

@@ -16,6 +16,7 @@ namespace Bms.Api.Controllers;
 [Authorize]
 public sealed class DevicesController(
     IDeviceRepository devices,
+    ITenantRepository tenants,
     ISiteRepository sites,
     IDeviceTypeRepository deviceTypes,
     IConnectorRepository connectors,
@@ -121,6 +122,7 @@ public sealed class DevicesController(
         if (await devices.GetByDeviceCodeAsync(deviceCode, ct) is not null)
             throw ApiException.Conflict(sensorId is null ? "A device with this code already exists" : $"Sensor {sensorId} is already registered on this connector", "DEVICE_CODE_TAKEN");
 
+        var mqttTopic = await ValidateMqttTopicAsync(request.MqttTelemetryTopic, request.Connection, null, tenantId, request.SiteId, deviceCode, ct);
         var device = new Device
         {
             TenantId = tenantId,
@@ -128,6 +130,7 @@ public sealed class DevicesController(
             DeviceTypeId = request.DeviceTypeId,
             GatewayId = request.GatewayId,
             DeviceCode = deviceCode,
+            MqttTelemetryTopic = mqttTopic,
             Connection = request.Connection,
             ConnectorId = connectorId,
             SensorId = sensorId,
@@ -170,6 +173,7 @@ public sealed class DevicesController(
         var device = await devices.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");
         RequireTenantAccess(device.TenantId);
 
+        device.MqttTelemetryTopic = await ValidateMqttTopicAsync(request.MqttTelemetryTopic, device.Connection, device.Id, device.TenantId, device.SiteId, device.DeviceCode, ct);
         device.Name = request.Name;
         device.SerialNumber = request.SerialNumber;
         device.Manufacturer = request.Manufacturer;
@@ -353,5 +357,34 @@ public sealed class DevicesController(
         d.SensorId,
         d.InstalledOn,
         d.MountingLocation,
-        d.ValueConversions.Select(c => new DeviceValueConversionDto(c.ParameterKey, c.Offset, c.Scale)).ToList());
+        d.ValueConversions.Select(c => new DeviceValueConversionDto(c.ParameterKey, c.Offset, c.Scale)).ToList(),
+        d.MqttTelemetryTopic,
+        d.Connection == DeviceConnection.MqttDirect ? d.MqttTelemetryTopic ?? MqttTelemetryTopicRules.DefaultFor(d.DeviceCode) : null);
+
+    private async Task<string?> ValidateMqttTopicAsync(string? topic, DeviceConnection connection, Guid? id,
+        Guid tenantId, Guid siteId, string deviceCode, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(topic)) topic = null;
+        if (connection != DeviceConnection.MqttDirect)
+        {
+            if (topic is not null) throw ApiException.BadRequest("Custom MQTT topics apply to MQTT-direct devices only", "MQTT_TOPIC_CONNECTION");
+            return null;
+        }
+        var effectiveTopic = topic ?? MqttTelemetryTopicRules.DefaultFor(deviceCode);
+        var validationError = topic is null ? MqttTelemetryTopicRules.ValidateGatewayId(deviceCode) : MqttTelemetryTopicRules.Validate(topic);
+        if (validationError is { } error)
+            throw ApiException.BadRequest(error, "MQTT_TOPIC_INVALID");
+        var existing = await devices.GetByMqttTopicAsync(effectiveTopic, ct);
+        if (existing is not null && existing.Id != id)
+            throw ApiException.Conflict("This MQTT topic is already assigned to a device", "MQTT_TOPIC_TAKEN");
+        // Existing iot/... addresses retain their company/site/device ownership.
+        if (topic is not null && Bms.Protocols.Protocols.MqttTopic.TryParse(topic, out var canonical) && canonical is not null)
+        {
+            var tenant = await tenants.GetByIdAsync(tenantId, ct);
+            var site = await sites.GetByIdAsync(tenantId, siteId, ct);
+            if (canonical.TenantSlug != tenant?.Slug || canonical.SiteCode != site?.Code || canonical.DeviceCode != deviceCode)
+                throw ApiException.BadRequest("An existing iot/ address must identify this company, site and device", "MQTT_TOPIC_OWNER_MISMATCH");
+        }
+        return topic;
+    }
 }

@@ -9,6 +9,8 @@ public class Device : TenantScopedEntity
     public Guid? GatewayId { get; set; }
 
     public string DeviceCode { get; set; } = string.Empty;
+    /// <summary>Optional exact MQTT telemetry topic; no prefix or topic layout is required.</summary>
+    public string? MqttTelemetryTopic { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? SerialNumber { get; set; }
     public string? Manufacturer { get; set; }

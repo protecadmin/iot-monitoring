@@ -69,19 +69,19 @@ public sealed class SiteRepository(BmsDbContext db) : ISiteRepository
 
 public sealed class GatewayRepository(BmsDbContext db) : IGatewayRepository
 {
-    public Task<Gateway?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct) =>
-        db.Gateways.Include(g => g.Site).FirstOrDefaultAsync(g => g.TenantId == tenantId && g.Id == id, ct);
+    public Task<Gateway?> GetByIdAsync(Guid? tenantId, Guid id, CancellationToken ct) =>
+        db.Gateways.Include(g => g.Site).Include(g => g.Devices).FirstOrDefaultAsync(g => g.Id == id && (tenantId == null || g.TenantId == tenantId), ct);
 
     public Task<PagedResult<Gateway>> ListAsync(Guid? tenantId, Guid? siteId, PageRequest request, CancellationToken ct)
     {
-        var query = db.Gateways.AsNoTracking().Include(g => g.Site).AsQueryable();
+        var query = db.Gateways.AsNoTracking().Include(g => g.Site).Include(g => g.Devices).AsQueryable();
         if (tenantId is { } id)
             query = query.Where(g => g.TenantId == id);
         if (siteId is { } sid)
             query = query.Where(g => g.SiteId == sid);
         query = query.OrderBy(g => g.Name);
         if (!string.IsNullOrWhiteSpace(request.Search))
-            query = query.Where(g => g.Name.Contains(request.Search)).OrderBy(g => g.Name);
+            query = query.Where(g => g.Name.Contains(request.Search) || g.GatewayCode.Contains(request.Search)).OrderBy(g => g.Name);
         return query.ToPagedResultAsync(request, ct);
     }
 
@@ -102,6 +102,19 @@ public sealed class GatewayRepository(BmsDbContext db) : IGatewayRepository
     public async Task DeleteAsync(Gateway gateway, CancellationToken ct)
     {
         db.Gateways.Remove(gateway);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public Task<Gateway?> GetByCodeAsync(string gatewayCode, CancellationToken ct) =>
+        db.Gateways.FirstOrDefaultAsync(g => g.GatewayCode == gatewayCode, ct);
+
+    public async Task TouchAsync(string gatewayCode, DateTimeOffset seenAt, bool measurement, CancellationToken ct)
+    {
+        var gateway = await db.Gateways.FirstOrDefaultAsync(g => g.GatewayCode == gatewayCode, ct);
+        if (gateway is null) return;
+        gateway.LastSeenAt = seenAt;
+        gateway.Status = GatewayStatus.Online;
+        if (measurement) gateway.LastMeasurementAt = seenAt;
         await db.SaveChangesAsync(ct);
     }
 }

@@ -90,9 +90,10 @@ auth_opt_pg_sslmode disable
 auth_opt_pg_userquery select "PasswordHash" from "MqttCredentials" where "Username" = $1
 # NOT optional — omitting this makes the postgres backend's ACL check
 # always return true (open access to every topic for every authenticated
-# user). This query reproduces the same iot/<tenant>/+/+/# isolation
-# pattern the old static acl file enforced.
-auth_opt_pg_aclquery select 'iot/' || "Username" || '/+/+/#' from "MqttCredentials" where "Username" = $1
+# user). The API migration creates MqttAllowedTopics: the original
+# iot/<tenant>/+/+/# namespace plus that company's registered custom topics.
+# go-auth binds both username ($1) and access mode ($2); both are required.
+auth_opt_pg_aclquery select "Topic" from "MqttAllowedTopics" where "Username" = $1 and $2::integer in (1, 2, 4)
 auth_opt_pg_hasher bcrypt
 
 # --- Authentication cache -------------------------------------------------

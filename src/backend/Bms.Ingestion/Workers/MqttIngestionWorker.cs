@@ -80,8 +80,30 @@ public sealed class MqttIngestionWorker : BackgroundService
             await _mqtt.SubscribeAsync(_options.CommandAckTopicFilter, stoppingToken);
             await _mqtt.SubscribeAsync("iot/+/+/+/events", stoppingToken);
             await _mqtt.SubscribeAsync("iot/+/+/+/status", stoppingToken);
+            await _mqtt.SubscribeAsync("protec/gateway/+/measurement", stoppingToken);
+            await _mqtt.SubscribeAsync("protec/gateway/+/health", stoppingToken);
+            await _mqtt.SubscribeAsync("protec/gateway/+/status", stoppingToken);
 
-            await Task.Delay(Timeout.Infinite, stoppingToken);
+            var customTopics = new HashSet<string>(StringComparer.Ordinal);
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var devices = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+                    foreach (var address in await devices.ListMqttTopicsAsync(stoppingToken))
+                    {
+                        if (customTopics.Contains(address)) continue;
+                        await _mqtt.SubscribeAsync(address, stoppingToken);
+                        customTopics.Add(address);
+                    }
+                }
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning(ex, "Could not refresh registered MQTT topics; retrying in 30 seconds");
+                }
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -109,11 +131,7 @@ public sealed class MqttIngestionWorker : BackgroundService
         if (message.IsRedelivery)
             IngestionMetrics.MessagesRedelivered.Add(1);
 
-        if (!MqttTopic.TryParse(message.Address, out var topic) || topic is null)
-        {
-            _logger.LogWarning("Ignoring message on unparsable topic {Topic}", message.Address);
-            return;
-        }
+        MqttTopic.TryParse(message.Address, out var topic);
 
         using var retryCts = CancellationTokenSource.CreateLinkedTokenSource(connectionToken, _stoppingToken);
         var delay = TimeSpan.FromMilliseconds(Math.Max(50, _reliability.TransientRetryInitialDelayMs));
@@ -124,6 +142,12 @@ public sealed class MqttIngestionWorker : BackgroundService
             try
             {
                 using var scope = _scopeFactory.CreateScope();
+                var gatewayCode = ExtractProtecGatewayCode(message.Address);
+                if (gatewayCode is not null)
+                {
+                    var gatewayRepository = scope.ServiceProvider.GetRequiredService<IGatewayRepository>();
+                    await gatewayRepository.TouchAsync(gatewayCode, DateTimeOffset.UtcNow, message.Address.EndsWith("/measurement", StringComparison.OrdinalIgnoreCase), _stoppingToken);
+                }
                 // Processing runs on the host's stopping token, not the
                 // connection's: a broker blip mid-insert must not abort a
                 // write that may already have committed.
@@ -168,8 +192,25 @@ public sealed class MqttIngestionWorker : BackgroundService
         }
     }
 
-    private async Task DispatchAsync(IServiceProvider services, MqttTopic topic, TransportMessage message, CancellationToken ct)
+    private static string? ExtractProtecGatewayCode(string address)
     {
+        var parts = address.Split('/');
+        return parts.Length == 4 && parts[0] == "protec" && parts[1] == "gateway" ? parts[2] : null;
+    }
+
+    private async Task DispatchAsync(IServiceProvider services, MqttTopic? topic, TransportMessage message, CancellationToken ct)
+    {
+        var devices = services.GetRequiredService<IDeviceRepository>();
+        if (await devices.GetByMqttTopicAsync(message.Address, ct) is not null)
+        {
+            await HandleTelemetryAsync(services, message, ct);
+            return;
+        }
+        if (topic is null)
+        {
+            _logger.LogWarning("Ignoring MQTT topic with no registered device: {Topic}", message.Address);
+            return;
+        }
         switch (topic.MessageType)
         {
             case "telemetry":

@@ -1,6 +1,24 @@
 # MQTT Topic Design
 
-## Topic shape
+## Default gateway measurement topic
+
+```text
+protec/gateway/{gatewayId}/measurement
+```
+
+For MQTT-direct devices, the gateway ID is stored as the device code. Each
+gateway connects to one sensor. Register the gateway ID, company and site;
+leave the optional custom topic blank. Ingestion resolves the generated topic
+through the device registry. Publishing is restricted to its owning company;
+every authenticated MQTT user can read gateway traffic across companies through
+`protec/gateway/#`, according to the platform's shared-read policy.
+See [custom-topics.md](custom-topics.md) for custom overrides and rollout details.
+
+## Legacy and control topic shape
+
+The following addresses remain supported for existing publishers, internal TCP
+connector telemetry, and command/heartbeat/status traffic. They are not the
+default measurement address shown during MQTT device registration.
 
 ```
 iot/{tenantId}/{siteId}/{deviceId}/{messageType}

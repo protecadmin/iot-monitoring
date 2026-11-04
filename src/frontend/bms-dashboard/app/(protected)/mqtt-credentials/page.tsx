@@ -90,8 +90,7 @@ function EditCredentialModal({ credential, onClose, onSaved }: { credential: Mqt
           <input value={credential.username} disabled className={`${inputClass} font-mono opacity-60 cursor-not-allowed`} />
         </FormField>
         <p className="text-xs text-muted-foreground -mt-1">
-          Fixed to the tenant code — the broker only lets this login use <code className="font-mono">iot/{credential.username}/…</code> topics, which is
-          where BMS talks to this tenant&apos;s devices.
+          Fixed to the company code. This login can use this company&apos;s registered gateway measurement topics and configured custom topics.
         </p>
         <FormField label="New password">
           <div className="flex gap-2">

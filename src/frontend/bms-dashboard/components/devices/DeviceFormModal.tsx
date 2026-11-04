@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { TiltApi } from "@/lib/api/tilt";
 import { TiltScheduleFields } from "@/components/devices/TiltScheduleFields";
 import { useApi } from "@/hooks/useApi";
-import { CalculationsApi, ConnectorsApi, DeviceTypesApi, DevicesApi, SitesApi, TenantsApi } from "@/lib/api/resources";
+import { CalculationsApi, ConnectorsApi, DeviceTypesApi, DevicesApi, GatewaysApi, SitesApi, TenantsApi } from "@/lib/api/resources";
 import { useCan } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/client";
 import { Modal, FormField, inputClass } from "@/components/ui/Modal";
@@ -31,18 +31,21 @@ export function DeviceFormModal({
   const can = useCan();
   const connectorsQuery = useApi(() => (can("connectors.view") ? ConnectorsApi.list() : Promise.resolve([])), []);
 
-  const tenantsQuery = useApi(() => (fixedTenantId || isEdit ? Promise.resolve(undefined) : TenantsApi.list()), [fixedTenantId, isEdit]);
+  const tenantsQuery = useApi(() => (fixedTenantId ? Promise.resolve(undefined) : TenantsApi.list()), [fixedTenantId]);
   const deviceTypesQuery = useApi(() => DeviceTypesApi.list(), []);
 
   const [tenantId, setTenantId] = useState(fixedTenantId ?? device?.tenantId ?? "");
-  const sitesQuery = useApi(() => (tenantId ? SitesApi.list(tenantId) : Promise.resolve(undefined)), [tenantId]);
-
   const [siteId, setSiteId] = useState(device?.siteId ?? "");
+  const sitesQuery = useApi(() => (tenantId ? SitesApi.list(tenantId) : Promise.resolve(undefined)), [tenantId]);
+  const gatewaysQuery = useApi(() => (!isEdit && tenantId ? GatewaysApi.available(tenantId, siteId || undefined) : Promise.resolve(undefined)), [isEdit, tenantId, siteId]);
+
   // For a new device that's whatever site was just picked above; for editing,
   // the device's site never changes in this form, so use its existing one.
   const effectiveSiteId = isEdit ? device!.siteId : siteId;
   const [deviceTypeId, setDeviceTypeId] = useState(device?.deviceTypeId ?? "");
   const [deviceCode, setDeviceCode] = useState(device?.deviceCode ?? "");
+  const [gatewayId, setGatewayId] = useState(device?.gatewayId ?? "");
+  const [mqttTelemetryTopic, setMqttTelemetryTopic] = useState(device?.mqttTelemetryTopic ?? "");
   // How its data arrives. Fixed after creation: the device code (and so its MQTT topic) depends on it.
   const [connection, setConnection] = useState<DeviceConnection>(device?.connection ?? (prefill ? "Connector" : "MqttDirect"));
   const [connectorId, setConnectorId] = useState(device?.connectorId ?? prefill?.connectorId ?? "");
@@ -134,6 +137,7 @@ export function DeviceFormModal({
           longitude: lngNum,
           // Gateways aren't managed in the dashboard; keep whatever is stored.
           gatewayId: device.gatewayId ?? undefined,
+          mqttTelemetryTopic: isMqttDirect ? mqttTelemetryTopic || null : null,
           installedOn: installedOn || undefined,
           mountingLocation: mountingLocation || undefined,
         });
@@ -141,7 +145,9 @@ export function DeviceFormModal({
         saved = await DevicesApi.create(tenantId, {
           siteId,
           deviceTypeId,
+          gatewayId: gatewayId || undefined,
           deviceCode: connection === "Connector" ? codeFromSensor : deviceCode,
+          mqttTelemetryTopic: isMqttDirect ? mqttTelemetryTopic || null : null,
           connection,
           connectorId: connection === "Connector" ? connectorId : undefined,
           sensorId: connection === "Connector" ? sensorId.trim() : undefined,
@@ -260,9 +266,12 @@ export function DeviceFormModal({
         )}
 
         {!isEdit && connection === "MqttDirect" && (
-          <FormField label="Device code">
-            <input required value={deviceCode} onChange={(e) => setDeviceCode(e.target.value)} placeholder="e.g. device-021" className={inputClass} />
-            <p className="text-xs text-muted-foreground mt-1">Unique; used in the device&apos;s MQTT topic (…/device-021/telemetry).</p>
+          <FormField label="Gateway">
+            <select value={gatewayId} onChange={(e) => { const value = e.target.value; setGatewayId(value); const selected = gatewaysQuery.data?.find((g) => g.id === value); if (selected) setDeviceCode(selected.gatewayCode); }} className={inputClass}>
+              <option value="">None / standalone device</option>
+              {gatewaysQuery.data?.map((gateway) => <option key={gateway.id} value={gateway.id}>{gateway.name} — {gateway.gatewayCode} ({gateway.status})</option>)}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">Select a registered gateway, or leave unassigned. The gateway code becomes the MQTT device code.</p>
           </FormField>
         )}
 
@@ -306,13 +315,26 @@ export function DeviceFormModal({
         )}
 
         {isEdit && (
-          <p className="text-xs text-muted-foreground">
-            Device code <code className="font-mono">{device.deviceCode}</code> ·{" "}
-            {device.connection === "Connector"
-              ? `connector ${connectors.find((c) => c.id === device.connectorId)?.name ?? ""}, sensor ${device.sensorId}`
-              : "MQTT direct"}{" "}
-            — fixed after creation.
-          </p>
+          <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <div><span className="text-xs text-muted-foreground">Tenant</span><div>{tenantsQuery.data?.items.find((t) => t.id === device.tenantId)?.name ?? device.tenantId}</div></div>
+              <div><span className="text-xs text-muted-foreground">Site</span><div>{sitesQuery.data?.items.find((s) => s.id === device.siteId)?.name ?? device.siteId}</div></div>
+              <div><span className="text-xs text-muted-foreground">Device type</span><div>{deviceTypesQuery.data?.find((t) => t.id === device.deviceTypeId)?.name ?? device.deviceTypeId}</div></div>
+              <div><span className="text-xs text-muted-foreground">Connection</span><div>{device.connection === "Connector" ? `Connector · ${connectors.find((c) => c.id === device.connectorId)?.name ?? ""}` : "MQTT direct"}</div></div>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">These fields are fixed after creation. Device code: <code className="font-mono">{device.deviceCode}</code>.</p>
+          </div>
+        )}
+
+        {isMqttDirect && (
+          <FormField label="Custom MQTT topic (optional)">
+            <input value={mqttTelemetryTopic} onChange={(e) => setMqttTelemetryTopic(e.target.value)} maxLength={512}
+              placeholder="Leave blank to use the default topic" className={inputClass} />
+            <p className="text-xs text-muted-foreground mt-1">
+              Default: <code className="font-mono break-all">protec/gateway/{deviceCode || "{gatewayId}"}/measurement</code>.
+              Leave this field blank to use it. Enter a custom topic only when needed.
+            </p>
+          </FormField>
         )}
 
         <div className="grid grid-cols-2 gap-3">

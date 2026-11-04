@@ -68,6 +68,8 @@ public sealed class BmsDbContext : DbContext
             e.HasIndex(x => new { x.ConnectorId, x.SensorId }).IsUnique().HasFilter("\"ConnectorId\" IS NOT NULL");
             e.HasOne<Bms.Domain.Connectors.Connector>().WithMany().HasForeignKey(x => x.ConnectorId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.DeviceCode).IsUnique();
+            e.Property(x => x.MqttTelemetryTopic).HasMaxLength(512);
+            e.HasIndex(x => x.MqttTelemetryTopic).IsUnique();
             e.Property(x => x.TwinTemplate).HasMaxLength(40);
             e.Property(x => x.TwinMountPoint).HasMaxLength(40);
             e.Property(x => x.TwinAssetName).HasMaxLength(80);
@@ -80,7 +82,7 @@ public sealed class BmsDbContext : DbContext
             // SetNull, not Restrict/Cascade — deleting a gateway shouldn't be
             // blocked by devices pointing at it, and shouldn't take the
             // devices down with it; they just become unassigned.
-            e.HasOne(x => x.Gateway).WithMany().HasForeignKey(x => x.GatewayId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Gateway).WithMany(g => g.Devices).HasForeignKey(x => x.GatewayId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Bms.Domain.Connectors.Connector>(e =>
@@ -177,7 +179,11 @@ public sealed class BmsDbContext : DbContext
 
         modelBuilder.Entity<Gateway>(e =>
         {
-            e.HasOne(x => x.Site).WithMany().HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.GatewayCode).IsUnique();
+            e.Property(x => x.GatewayCode).HasMaxLength(128).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(128).IsRequired();
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(24);
+            e.HasOne(x => x.Site).WithMany().HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Role>(e =>

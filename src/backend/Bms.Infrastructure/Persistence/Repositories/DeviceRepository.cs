@@ -8,6 +8,17 @@ namespace Bms.Infrastructure.Persistence.Repositories;
 
 public sealed class DeviceRepository(BmsDbContext db) : IDeviceRepository
 {
+    public Task<Device?> GetByMqttTopicAsync(string topic, CancellationToken ct)
+    {
+        var gatewayId = MqttTelemetryTopicRules.GatewayIdFrom(topic);
+        return db.Devices.FirstOrDefaultAsync(d => d.Connection == DeviceConnection.MqttDirect &&
+            (d.MqttTelemetryTopic == topic || (gatewayId != null && d.MqttTelemetryTopic == null && d.DeviceCode == gatewayId)), ct);
+    }
+
+    public async Task<IReadOnlyList<string>> ListMqttTopicsAsync(CancellationToken ct) =>
+        await db.Devices.AsNoTracking().Where(d => d.Connection == DeviceConnection.MqttDirect)
+            .Select(d => d.MqttTelemetryTopic ?? "protec/gateway/" + d.DeviceCode + "/measurement").ToListAsync(ct);
+
     public Task<Device?> GetByIdAsync(Guid id, CancellationToken ct) =>
         db.Devices.Include(d => d.Gateway).FirstOrDefaultAsync(d => d.Id == id, ct);
 

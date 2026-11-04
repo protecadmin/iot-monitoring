@@ -22,13 +22,10 @@ public sealed class MqttProtocolHandler : IProtocolHandler
 
     public async Task<RawDeviceMessage?> TryBuildRawMessageAsync(TransportMessage message, CancellationToken cancellationToken)
     {
-        if (!MqttTopic.TryParse(message.Address, out var topic) || topic is null)
-        {
-            _logger.LogWarning("Could not parse MQTT topic {Topic}", message.Address);
-            return null;
-        }
-
-        var device = await _devices.GetByCodesAsync(topic.TenantSlug, topic.SiteCode, topic.DeviceCode, cancellationToken);
+        // Explicit device registration takes priority over the legacy topic layout.
+        var device = await _devices.GetByMqttTopicAsync(message.Address, cancellationToken);
+        if (device is null && MqttTopic.TryParse(message.Address, out var topic) && topic is not null)
+            device = await _devices.GetByCodesAsync(topic.TenantSlug, topic.SiteCode, topic.DeviceCode, cancellationToken);
         if (device is null)
         {
             _logger.LogWarning("Unknown device for MQTT topic {Topic}", message.Address);

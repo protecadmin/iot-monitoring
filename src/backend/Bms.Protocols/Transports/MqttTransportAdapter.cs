@@ -264,7 +264,9 @@ public sealed class MqttTransportAdapter : ITransportAdapter
                 // again on every reconnect's re-subscribe.
                 .WithRetainHandling(MqttRetainHandling.SendAtSubscribeIfNewSubscriptionOnly))
             .Build();
-        await _client.SubscribeAsync(subscribeOptions, ct);
+        var result = await _client.SubscribeAsync(subscribeOptions, ct);
+        if (result.Items.Any(item => (int)item.ResultCode >= 128))
+            throw new InvalidOperationException($"MQTT subscription to '{filter}' was rejected: {string.Join(", ", result.Items.Select(item => item.ResultCode))}");
     }
 
     private async Task ReconnectWithBackoffAsync()

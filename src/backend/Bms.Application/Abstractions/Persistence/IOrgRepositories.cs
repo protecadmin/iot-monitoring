@@ -24,13 +24,15 @@ public interface ISiteRepository
 
 public interface IGatewayRepository
 {
-    Task<Gateway?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct);
+    Task<Gateway?> GetByIdAsync(Guid? tenantId, Guid id, CancellationToken ct);
 
     /// <summary>Null tenantId lists across every tenant — only valid for a SuperAdmin caller (see GatewaysController). siteId further narrows to one site.</summary>
     Task<PagedResult<Gateway>> ListAsync(Guid? tenantId, Guid? siteId, PageRequest request, CancellationToken ct);
     Task<Gateway> AddAsync(Gateway gateway, CancellationToken ct);
     Task UpdateAsync(Gateway gateway, CancellationToken ct);
     Task DeleteAsync(Gateway gateway, CancellationToken ct);
+    Task<Gateway?> GetByCodeAsync(string gatewayCode, CancellationToken ct);
+    Task TouchAsync(string gatewayCode, DateTimeOffset seenAt, bool measurement, CancellationToken ct);
 }
 
 public interface IDeviceTypeRepository

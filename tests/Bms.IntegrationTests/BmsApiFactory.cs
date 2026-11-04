@@ -18,6 +18,7 @@ namespace Bms.IntegrationTests;
 /// </summary>
 public sealed class BmsApiFactory : WebApplicationFactory<Bms.Api.ApiMarker>
 {
+    // BMS_TEST_POSTGRES can select an isolated test container; production database names are refused.
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
@@ -30,9 +31,14 @@ public sealed class BmsApiFactory : WebApplicationFactory<Bms.Api.ApiMarker>
         });
         builder.ConfigureAppConfiguration((_, config) =>
         {
+            var testPostgres = Environment.GetEnvironmentVariable("BMS_TEST_POSTGRES")
+                ?? "Host=localhost;Port=5432;Database=bms_platform_test;Username=bms_app;Password=devpassword";
+            var target = new Npgsql.NpgsqlConnectionStringBuilder(testPostgres);
+            if (target.Database is null || !target.Database.EndsWith("_test", StringComparison.Ordinal))
+                throw new InvalidOperationException("Integration tests require a database name ending in _test.");
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:Postgres"] = Environment.GetEnvironmentVariable("BMS_TEST_POSTGRES") ?? "Host=localhost;Port=5432;Database=bms_platform_test;Username=bms_app;Password=devpassword",
+                ["ConnectionStrings:Postgres"] = testPostgres,
                 ["InfluxDb:Url"] = "http://localhost:8086",
                 ["InfluxDb:Org"] = "bms-platform",
                 ["InfluxDb:Bucket"] = "telemetry",
