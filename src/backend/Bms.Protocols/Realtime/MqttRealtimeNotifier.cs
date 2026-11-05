@@ -115,6 +115,15 @@ public sealed class MqttRealtimeNotifier : IRealtimeNotifier
             update.Payload
         }, ct);
 
+    public Task HubMessageReceivedAsync(HubMessageUpdate update, CancellationToken ct) =>
+        PublishGlobalAsync("HubMessageReceived", new
+        {
+            update.HubId,
+            update.Topic,
+            update.ReceivedAt,
+            update.Payload
+        }, ct);
+
     private async Task PublishGlobalAsync(string eventName, object payload, CancellationToken ct)
     {
         if (!_mqtt.IsConnected) return;

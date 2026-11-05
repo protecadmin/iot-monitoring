@@ -48,6 +48,7 @@ import type {
   ConnectorUnmappedKeyDto,
   ConnectorServiceStatusDto,
   GatewayDto,
+  HubDto,
 } from "@/types/api";
 
 export const AuthApi = {
@@ -153,6 +154,24 @@ export const GatewaysApi = {
   create: (body: { gatewayCode: string; name?: string; ipAddress?: string; firmwareVersion?: string }) => api.post<GatewayDto>("/api/gateways", body),
   update: (id: string, body: { name: string; ipAddress?: string; firmwareVersion?: string }) => api.put<GatewayDto>(`/api/gateways/${id}`, body),
   remove: (id: string) => api.delete<void>(`/api/gateways/${id}`),
+  command: (id: string, op: string, payload: Record<string, unknown> = {}) =>
+    api.post<{ topic: string; operation: string }>(`/api/gateways/${id}/commands`, { op, payload }),
+};
+
+
+export const HubsApi = {
+  list: (params: { search?: string; status?: string; tenantId?: string; siteId?: string; page?: number; pageSize?: number } = {}) =>
+    api.get<PagedResult<HubDto>>(`/api/hubs${toQuery(params)}`),
+  get: (id: string) => api.get<HubDto>(`/api/hubs/${id}`),
+  create: (body: { hubId: string; name?: string; siteId?: string; ipAddress?: string; appVersion?: string; agentVersion?: string; securityMode?: string }) =>
+    api.post<HubDto>("/api/hubs", body),
+  update: (id: string, body: { name: string; siteId?: string; ipAddress?: string; appVersion?: string; agentVersion?: string; securityMode?: string }) =>
+    api.put<HubDto>(`/api/hubs/${id}`, body),
+  remove: (id: string) => api.delete<void>(`/api/hubs/${id}`),
+  command: (id: string, action: string, args: Record<string, unknown> = {}) =>
+    api.post<{ topic: string; action: string; commandId: string }>(`/api/hubs/${id}/commands`, { action, arguments: args }),
+  setDesiredConfig: (id: string, patch: { displayMode?: string; rotationSeconds?: number; welcomeSeconds?: number; historyRange?: string }) =>
+    api.post<{ topic: string; requestId: string; desiredRevision: number; patch: Record<string, unknown> }>(`/api/hubs/${id}/config/desired`, patch),
 };
 
 export const DeviceBaselinesApi = {

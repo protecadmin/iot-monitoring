@@ -22,6 +22,7 @@ public sealed class BmsDbContext : DbContext
     public DbSet<Bms.Domain.Connectors.ConnectorCapture> ConnectorCaptures => Set<Bms.Domain.Connectors.ConnectorCapture>();
     public DbSet<DeviceTypeParameter> DeviceTypeParameters => Set<DeviceTypeParameter>();
     public DbSet<Gateway> Gateways => Set<Gateway>();
+    public DbSet<Hub> Hubs => Set<Hub>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<AlertRule> AlertRules => Set<AlertRule>();
@@ -183,6 +184,19 @@ public sealed class BmsDbContext : DbContext
             e.Property(x => x.GatewayCode).HasMaxLength(128).IsRequired();
             e.Property(x => x.Name).HasMaxLength(128).IsRequired();
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(24);
+            e.HasOne(x => x.Site).WithMany().HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Hub>(e =>
+        {
+            e.HasIndex(x => x.HubId).IsUnique();
+            e.Property(x => x.HubId).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(128).IsRequired();
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(24);
+            e.Property(x => x.SecurityMode).HasMaxLength(32);
+            e.Property(x => x.DisplayMode).HasMaxLength(64);
+            e.Property(x => x.HistoryRange).HasMaxLength(32);
             e.HasOne(x => x.Site).WithMany().HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.SetNull);
         });

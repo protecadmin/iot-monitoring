@@ -430,6 +430,37 @@ export interface MqttCredentialDto {
   rotatedAt: string | null;
 }
 
+
+export interface HubDto {
+  id: string;
+  tenantId: string | null;
+  tenantName?: string | null;
+  siteId: string | null;
+  siteName: string;
+  hubId: string;
+  name: string;
+  status: string;
+  ipAddress: string | null;
+  appVersion?: string | null;
+  agentVersion?: string | null;
+  securityMode?: string | null;
+  rssi?: number | null;
+  uptimeSeconds?: number | null;
+  configRevision: number;
+  configHash?: string | null;
+  displayMode?: string | null;
+  rotationSeconds?: number | null;
+  welcomeSeconds?: number | null;
+  historyRange?: string | null;
+  lastSeenAt: string | null;
+  lastHeartbeatAt?: string | null;
+  lastMeasurementAt?: string | null;
+  lastConfigSyncAt?: string | null;
+  desiredConfigJson?: string | null;
+  reportedConfigJson?: string | null;
+  lastStatusJson?: string | null;
+}
+
 export interface GatewayDto {
   id: string;
   tenantId: string | null;

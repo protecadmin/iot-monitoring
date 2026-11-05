@@ -19,4 +19,5 @@ public interface IRealtimeNotifier
     Task FirmwareDeploymentUpdatedAsync(FirmwareDeployment deployment, CancellationToken ct);
     Task CalculationUpdatedAsync(CalculationUpdate update, CancellationToken ct);
     Task GatewayMessageReceivedAsync(GatewayMessageUpdate update, CancellationToken ct);
+    Task HubMessageReceivedAsync(HubMessageUpdate update, CancellationToken ct);
 }

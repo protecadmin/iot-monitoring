@@ -1,0 +1,3 @@
+dotnet run --project src/backend/Bms.Api
+dotnet run --project src/backend/Bms.Ingestion
+dotnet run --project src/backend/Bms.Connectors

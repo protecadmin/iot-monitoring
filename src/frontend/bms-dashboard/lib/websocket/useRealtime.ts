@@ -15,7 +15,9 @@ export type RealtimeEvent =
   | "AlertResolved"
   | "CommandStatusChanged"
   | "FirmwareDeploymentUpdated"
-  | "CalculationUpdated";
+  | "CalculationUpdated"
+  | "GatewayMessageReceived"
+  | "HubMessageReceived";
 
 /**
  * One shared SignalR connection per mounted component tree, joined to the
@@ -65,6 +67,8 @@ export function useRealtime(handlers: Partial<Record<RealtimeEvent, (payload: un
       "CommandStatusChanged",
       "FirmwareDeploymentUpdated",
       "CalculationUpdated",
+      "GatewayMessageReceived",
+      "HubMessageReceived",
     ];
 
     for (const event of events) {

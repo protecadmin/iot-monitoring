@@ -89,6 +89,9 @@ public sealed class RealtimeNotifier : IRealtimeNotifier
     public Task GatewayMessageReceivedAsync(GatewayMessageUpdate update, CancellationToken ct) =>
         _hub.Clients.Group(RealtimeGroups.AllTenants).SendAsync("GatewayMessageReceived", update, ct);
 
+    public Task HubMessageReceivedAsync(HubMessageUpdate update, CancellationToken ct) =>
+        _hub.Clients.Group(RealtimeGroups.AllTenants).SendAsync("HubMessageReceived", update, ct);
+
     private static object MapAlert(Alert alert) => new
     {
         alert.Id,

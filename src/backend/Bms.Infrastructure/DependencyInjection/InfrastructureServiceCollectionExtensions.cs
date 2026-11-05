@@ -45,6 +45,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ISiteRepository, SiteRepository>();
         services.AddScoped<IGatewayRepository, GatewayRepository>();
+        services.AddScoped<IHubRepository, HubRepository>();
         services.AddScoped<IDeviceTypeRepository, DeviceTypeRepository>();
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IDeviceBaselineRepository, DeviceBaselineRepository>();

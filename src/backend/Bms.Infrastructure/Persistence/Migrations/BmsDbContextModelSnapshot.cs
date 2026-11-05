@@ -1290,6 +1290,111 @@ namespace Bms.Infrastructure.Persistence.Migrations
                     b.ToTable("GlobalAlertRules");
                 });
 
+            modelBuilder.Entity("Bms.Domain.Entities.Hub", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AgentVersion")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AppVersion")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ConfigHash")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ConfigRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DesiredConfigJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DisplayMode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("HistoryRange")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("HubId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("LastConfigSyncAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastHeartbeatAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastMeasurementAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastStatusJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ReportedConfigJson")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("RotationSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Rssi")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SecurityMode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("SiteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("UptimeSeconds")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("WelcomeSeconds")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HubId")
+                        .IsUnique();
+
+                    b.HasIndex("SiteId");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("Hubs");
+                });
+
             modelBuilder.Entity("Bms.Domain.Entities.MqttCredential", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2061,6 +2166,23 @@ namespace Bms.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Bms.Domain.Entities.Gateway", b =>
+                {
+                    b.HasOne("Bms.Domain.Entities.Site", "Site")
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Bms.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Site");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Bms.Domain.Entities.Hub", b =>
                 {
                     b.HasOne("Bms.Domain.Entities.Site", "Site")
                         .WithMany()

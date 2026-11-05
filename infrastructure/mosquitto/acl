@@ -46,6 +46,7 @@ topic read bms/ingestion/+/status
 topic write iot/+/+/+/commands
 topic write iot/+/+/+/config
 topic write iot/+/+/+/firmware
+topic write protec/#
 
 # Connector Service: publishes readings translated from devices that send
 # their own format (raw TCP etc.), for any company — so it may WRITE device
