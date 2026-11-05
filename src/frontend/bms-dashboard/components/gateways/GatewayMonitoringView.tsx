@@ -18,6 +18,18 @@ type Send = (op: string, payload?: Data) => Promise<void>;
 function object(value: unknown): Data {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Data : {};
 }
+function decodedReading(reading: Data, sensorName: string): { values: Data; units: Data; interval?: string } {
+  const values = reading.values;
+  if (!Array.isArray(values)) return { values: object(values), units: object(reading.units) };
+  const valid = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value !== -2147483648;
+  if (sensorName.toUpperCase() === "BSWA308" || sensorName === "1") {
+    const result: Data = {};
+    const units: Data = {};
+    if (valid(values[0])) { result.LAeqT = values[0] / 10; units.LAeqT = "dB"; }
+    return { values: result, units, interval: valid(values[3]) ? `${values[3]} s reporting interval` : undefined };
+  }
+  return { values: Object.fromEntries(values.map((value, index) => [`Value ${index + 1}`, value]).filter(([, value]) => valid(value))), units: {} };
+}
 function display(value: unknown): string {
   if (value === undefined || value === null || value === "") return "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -65,7 +77,11 @@ export function GatewayMonitoringView({ gateway: g, responses, messages, busy, n
   const health = gatewayStatusPresentation(status, g);
   const latest = responses.find(r => r.data?.type === "measurement" || r.data?.type === "latest");
   const reading = object(latest?.data?.record ?? latest?.data);
-  const values = object(reading.values);
+  const readingSensorName = typeof reading.sensor === "string" && reading.sensor.trim()
+    ? reading.sensor
+    : typeof sensor.name === "string" ? sensor.name : "";
+  const decoded = decodedReading(reading, readingSensorName || String(reading.sensor ?? reading.sensor_id ?? ""));
+  const values = decoded.values;
   const config = responses.find(r => typeof r.data?.mqtt_host === "string");
   const capabilities = responses.find(r => r.data?.capabilities !== undefined);
   const history = responses.find(r => r.data?.type === "history_page");
@@ -114,8 +130,8 @@ export function GatewayMonitoringView({ gateway: g, responses, messages, busy, n
         {health.diagnostics.length > 0 && <details className={styles.statusDiagnostics}><summary>Network &amp; system diagnostics</summary><dl>{health.diagnostics.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{display(value)}</dd></div>)}</dl></details>}
       </Panel>
       <Panel id="gateway-latest" icon={Signal} title="Latest Sensor Reading" description="Most recent data from the connected device" action={latest && <StatusBadge status="Received" />}>
-        <div className={styles.sensorCard}><Cpu aria-hidden="true" /><div><h3>{display(reading.sensor ?? sensor.name ?? reading.sensor_id)}</h3><p>Connected sensor</p></div></div>
-        {latest ? <><dl className={styles.readings}>{Object.keys(values).length > 0 ? Object.entries(values).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{display(value)} <small>{display(object(reading.units)[key]) === "—" ? "" : display(object(reading.units)[key])}</small></dd></div>) : <div><dt>Reported values</dt><dd>{display(reading.values)}</dd></div>}</dl><p className={styles.received}><Clock3 size={18} /><span>Received At<strong>{date(latest.message.receivedAt)}</strong></span></p></> : <p className={styles.empty}>No reading received in this session. Request Latest Reading to retrieve the gateway’s current data.</p>}
+        <div className={styles.sensorCard}><Cpu aria-hidden="true" /><div><h3>{display(readingSensorName || (reading.sensor_id === 1 ? "BSWA308" : reading.sensor_id))}</h3><p>Connected sensor</p></div></div>
+        {latest ? <><dl className={styles.readings}>{Object.keys(values).length > 0 ? Object.entries(values).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{display(value)} <small>{display(decoded.units[key]) === "—" ? "" : display(decoded.units[key])}</small></dd></div>) : <div><dt>Reported values</dt><dd>{display(reading.values)}</dd></div>}</dl>{decoded.interval && <p className={styles.helper}>{decoded.interval}</p>}<p className={styles.received}><Clock3 size={18} /><span>Received At<strong>{date(latest.message.receivedAt)}</strong></span></p></> : <p className={styles.empty}>No reading received in this session. Request Latest Reading to retrieve the gateway’s current data.</p>}
       </Panel>
     </div>
 
