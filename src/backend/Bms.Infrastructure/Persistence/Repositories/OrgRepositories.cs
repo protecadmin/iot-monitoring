@@ -74,7 +74,8 @@ public sealed class GatewayRepository(BmsDbContext db) : IGatewayRepository
 
     public Task<PagedResult<Gateway>> ListAsync(Guid? tenantId, Guid? siteId, PageRequest request, CancellationToken ct)
     {
-          var query = db.Gateways.AsNoTracking().Include(g => g.Site).Include(g => g.Tenant).Include(g => g.Devices).AsQueryable();
+          var query = db.Gateways.AsNoTracking().Include(g => g.Site).Include(g => g.Tenant)
+              .Include(g => g.Devices).ThenInclude(d => d.Site).ThenInclude(s => s.Tenant).AsQueryable();
         // Device creation may claim a standalone gateway. Keep unassigned
         // gateways visible while still restricting already-mapped gateways
         // to the requested tenant/site.
