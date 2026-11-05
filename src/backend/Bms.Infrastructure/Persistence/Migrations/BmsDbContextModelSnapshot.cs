@@ -1229,6 +1229,8 @@ namespace Bms.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SiteId");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("Gateways");
                 });
 
@@ -2065,7 +2067,14 @@ namespace Bms.Infrastructure.Persistence.Migrations
                         .HasForeignKey("SiteId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("Bms.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Site");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Bms.Domain.Entities.MqttCredential", b =>

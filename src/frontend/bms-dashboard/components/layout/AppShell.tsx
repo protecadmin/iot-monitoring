@@ -16,7 +16,6 @@ import {
   Cpu,
   FileText,
   HardDriveDownload,
-  KeyRound,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -73,7 +72,6 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: t
     items: [
       { href: "/tenants", label: "Tenants", icon: Building2, permission: "tenants.manage" },
       { href: "/sites", label: "Sites", icon: MapPin },
-      { href: "/mqtt-credentials", label: "MQTT Credentials", icon: KeyRound, permission: "mqttCredentials.manage" },
       { href: "/gateways", label: "Gateways", icon: Radio },
       { href: "/connectors", label: "Connectors", icon: Plug, permission: "connectors.manage" },
     ],

@@ -435,6 +435,7 @@ export interface GatewayDto {
   tenantId: string | null;
   siteId: string | null;
   siteName: string;
+  tenantName?: string | null;
   name: string;
   gatewayCode: string;
   status: string;

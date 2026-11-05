@@ -17,6 +17,7 @@ public class Gateway : Entity
     public DateTimeOffset? LastMeasurementAt { get; set; }
 
     public Site? Site { get; set; }
+    public Tenant? Tenant { get; set; }
     public ICollection<Device> Devices { get; set; } = new List<Device>();
 }
 

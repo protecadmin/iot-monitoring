@@ -184,6 +184,7 @@ public sealed class BmsDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(128).IsRequired();
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(24);
             e.HasOne(x => x.Site).WithMany().HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Tenant).WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Role>(e =>

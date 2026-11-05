@@ -64,7 +64,7 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
             TenantId = tenantId,
             SiteId = request.SiteId,
             GatewayCode = request.GatewayCode.Trim(),
-            Name = request.Name,
+            Name = string.IsNullOrWhiteSpace(request.Name) ? request.GatewayCode! : request.Name.Trim(),
             IpAddress = request.IpAddress,
             FirmwareVersion = request.FirmwareVersion,
             Rssi = request.Rssi,
@@ -90,10 +90,10 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
-    public async Task<ActionResult<GatewayDto>> Update(Guid id, [FromQuery] Guid tenantId, UpdateGatewayRequest request, CancellationToken ct)
+    public async Task<ActionResult<GatewayDto>> Update(Guid id, [FromQuery] Guid? tenantId, UpdateGatewayRequest request, CancellationToken ct)
     {
-        RequireTenantAccess(tenantId);
-        var gateway = await gateways.GetByIdAsync(tenantId, id, ct) ?? throw ApiException.NotFound("Gateway not found", "GATEWAY_NOT_FOUND");
+        if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
+        var gateway = await gateways.GetByIdAsync(EffectiveTenantFilter(tenantId), id, ct) ?? throw ApiException.NotFound("Gateway not found", "GATEWAY_NOT_FOUND");
         gateway.Name = request.Name;
         gateway.IpAddress = request.IpAddress;
         gateway.FirmwareVersion = request.FirmwareVersion;
@@ -102,7 +102,7 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
         await gateways.UpdateAsync(gateway, ct);
         await auditLog.AddAsync(new AuditLog
         {
-            TenantId = tenantId,
+            TenantId = gateway.TenantId,
             UserId = CurrentUserId,
             Action = "Gateway.Update",
             EntityType = nameof(Gateway),
@@ -113,14 +113,14 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<IActionResult> Delete(Guid id, [FromQuery] Guid tenantId, CancellationToken ct)
+    public async Task<IActionResult> Delete(Guid id, [FromQuery] Guid? tenantId, CancellationToken ct)
     {
-        RequireTenantAccess(tenantId);
-        var gateway = await gateways.GetByIdAsync(tenantId, id, ct) ?? throw ApiException.NotFound("Gateway not found", "GATEWAY_NOT_FOUND");
+        if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
+        var gateway = await gateways.GetByIdAsync(EffectiveTenantFilter(tenantId), id, ct) ?? throw ApiException.NotFound("Gateway not found", "GATEWAY_NOT_FOUND");
         await gateways.DeleteAsync(gateway, ct);
         await auditLog.AddAsync(new AuditLog
         {
-            TenantId = tenantId,
+            TenantId = gateway.TenantId,
             UserId = CurrentUserId,
             Action = "Gateway.Delete",
             EntityType = nameof(Gateway),
@@ -131,5 +131,5 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
     }
 
     private static GatewayDto Map(Gateway g) => new(g.Id, g.TenantId, g.SiteId, g.Site?.Name ?? "— Unassigned —", g.Name, g.IpAddress, g.LastSeenAt,
-        g.GatewayCode, g.Status.ToString(), g.LastMeasurementAt, g.FirmwareVersion, g.Rssi, g.BatteryPct, g.Devices.Select(d => d.Name).ToList());
+        g.GatewayCode, g.Status.ToString(), g.LastMeasurementAt, g.FirmwareVersion, g.Rssi, g.BatteryPct, g.Devices.Select(d => d.Name).ToList(), g.Tenant?.Name);
 }

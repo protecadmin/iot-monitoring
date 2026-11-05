@@ -14,9 +14,11 @@ services:
   mosquitto:
     # Plain MQTT is intentionally exposed for legacy/test devices. Production
     # devices should prefer the TLS listener on 8883.
-    ports: !override ["1883:1883"]
+    ports: !override ["1883:1883", "8883:8883"]
     volumes:
       - /opt/protec/shared/mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro
+      - /opt/protec/shared/mosquitto/tls/fullchain.pem:/mosquitto/config/tls/fullchain.pem:ro
+      - /opt/protec/shared/mosquitto/tls/privkey.pem:/mosquitto/config/tls/privkey.pem:ro
       - /opt/protec/shared/mosquitto/passwd:/mosquitto/config/passwd:ro
     logging: *logging
   api:

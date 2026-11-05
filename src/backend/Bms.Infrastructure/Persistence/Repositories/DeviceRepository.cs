@@ -11,8 +11,9 @@ public sealed class DeviceRepository(BmsDbContext db) : IDeviceRepository
     public Task<Device?> GetByMqttTopicAsync(string topic, CancellationToken ct)
     {
         var gatewayId = MqttTelemetryTopicRules.GatewayIdFrom(topic);
-        return db.Devices.FirstOrDefaultAsync(d => d.Connection == DeviceConnection.MqttDirect &&
-            (d.MqttTelemetryTopic == topic || (gatewayId != null && d.MqttTelemetryTopic == null && d.DeviceCode == gatewayId)), ct);
+        return db.Devices.Include(d => d.Gateway).FirstOrDefaultAsync(d => d.Connection == DeviceConnection.MqttDirect &&
+            (d.MqttTelemetryTopic == topic || (gatewayId != null && d.MqttTelemetryTopic == null &&
+                (d.DeviceCode == gatewayId || (d.Gateway != null && d.Gateway.GatewayCode == gatewayId)))), ct);
     }
 
     public async Task<IReadOnlyList<string>> ListMqttTopicsAsync(CancellationToken ct) =>

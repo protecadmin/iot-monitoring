@@ -10,8 +10,8 @@ public sealed record UpdateSiteRequest(string Name, string? Address, double? Lat
 
 public sealed record GatewayDto(Guid Id, Guid? TenantId, Guid? SiteId, string SiteName, string Name, string? IpAddress, DateTimeOffset? LastSeenAt,
     string GatewayCode = "", string Status = "Standalone", DateTimeOffset? LastMeasurementAt = null, string? FirmwareVersion = null,
-    int? Rssi = null, double? BatteryPct = null, IReadOnlyList<string>? DeviceNames = null);
-public sealed record CreateGatewayRequest(Guid? SiteId, string Name, string? IpAddress, string? GatewayCode = null,
+    int? Rssi = null, double? BatteryPct = null, IReadOnlyList<string>? DeviceNames = null, string? TenantName = null);
+public sealed record CreateGatewayRequest(Guid? SiteId, string? Name, string? IpAddress, string? GatewayCode = null,
     string? FirmwareVersion = null, int? Rssi = null, double? BatteryPct = null);
 public sealed record UpdateGatewayRequest(string Name, string? IpAddress, string? FirmwareVersion = null, int? Rssi = null, double? BatteryPct = null);
 public sealed record GatewayAvailableDto(Guid Id, string GatewayCode, string Name, string Status, Guid? TenantId, Guid? SiteId);

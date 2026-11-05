@@ -70,11 +70,11 @@ public sealed class SiteRepository(BmsDbContext db) : ISiteRepository
 public sealed class GatewayRepository(BmsDbContext db) : IGatewayRepository
 {
     public Task<Gateway?> GetByIdAsync(Guid? tenantId, Guid id, CancellationToken ct) =>
-        db.Gateways.Include(g => g.Site).Include(g => g.Devices).FirstOrDefaultAsync(g => g.Id == id && (tenantId == null || g.TenantId == tenantId), ct);
+          db.Gateways.Include(g => g.Site).Include(g => g.Tenant).Include(g => g.Devices).FirstOrDefaultAsync(g => g.Id == id && (tenantId == null || g.TenantId == tenantId), ct);
 
     public Task<PagedResult<Gateway>> ListAsync(Guid? tenantId, Guid? siteId, PageRequest request, CancellationToken ct)
     {
-        var query = db.Gateways.AsNoTracking().Include(g => g.Site).Include(g => g.Devices).AsQueryable();
+          var query = db.Gateways.AsNoTracking().Include(g => g.Site).Include(g => g.Tenant).Include(g => g.Devices).AsQueryable();
         if (tenantId is { } id)
             query = query.Where(g => g.TenantId == id);
         if (siteId is { } sid)
@@ -110,11 +110,26 @@ public sealed class GatewayRepository(BmsDbContext db) : IGatewayRepository
 
     public async Task TouchAsync(string gatewayCode, DateTimeOffset seenAt, bool measurement, CancellationToken ct)
     {
-        var gateway = await db.Gateways.FirstOrDefaultAsync(g => g.GatewayCode == gatewayCode, ct);
-        if (gateway is null) return;
-        gateway.LastSeenAt = seenAt;
-        gateway.Status = GatewayStatus.Online;
-        if (measurement) gateway.LastMeasurementAt = seenAt;
+          if (string.IsNullOrWhiteSpace(gatewayCode)) return;
+          var gateway = await db.Gateways.FirstOrDefaultAsync(g => g.GatewayCode == gatewayCode, ct);
+          if (gateway is null)
+          {
+              gateway = new Gateway
+              {
+                  GatewayCode = gatewayCode.Trim(),
+                  Name = gatewayCode.Trim(),
+                  Status = GatewayStatus.Online,
+                  LastSeenAt = seenAt,
+                  LastMeasurementAt = measurement ? seenAt : null
+              };
+              db.Gateways.Add(gateway);
+          }
+          else
+          {
+              gateway.LastSeenAt = seenAt;
+              gateway.Status = GatewayStatus.Online;
+              if (measurement) gateway.LastMeasurementAt = seenAt;
+          }
         await db.SaveChangesAsync(ct);
     }
 }

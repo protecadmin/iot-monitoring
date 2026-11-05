@@ -150,7 +150,7 @@ export const GatewaysApi = {
     api.get<PagedResult<GatewayDto>>(`/api/gateways${toQuery(params)}`),
   available: (tenantId?: string, siteId?: string) => api.get<GatewayDto[]>(`/api/gateways/available${toQuery({ tenantId, siteId })}`),
   get: (id: string) => api.get<GatewayDto>(`/api/gateways/${id}`),
-  create: (body: { gatewayCode: string; name: string; ipAddress?: string; firmwareVersion?: string }) => api.post<GatewayDto>("/api/gateways", body),
+  create: (body: { gatewayCode: string; name?: string; ipAddress?: string; firmwareVersion?: string }) => api.post<GatewayDto>("/api/gateways", body),
   update: (id: string, body: { name: string; ipAddress?: string; firmwareVersion?: string }) => api.put<GatewayDto>(`/api/gateways/${id}`, body),
   remove: (id: string) => api.delete<void>(`/api/gateways/${id}`),
 };
