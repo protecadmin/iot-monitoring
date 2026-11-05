@@ -130,6 +130,16 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
         return NoContent();
     }
 
-    private static GatewayDto Map(Gateway g) => new(g.Id, g.TenantId, g.SiteId, g.Site?.Name ?? "— Unassigned —", g.Name, g.IpAddress, g.LastSeenAt,
-        g.GatewayCode, g.Status.ToString(), g.LastMeasurementAt, g.FirmwareVersion, g.Rssi, g.BatteryPct, g.Devices.Select(d => d.Name).ToList(), g.Tenant?.Name);
+    private static GatewayDto Map(Gateway g)
+    {
+        var mappedDevice = g.Devices.FirstOrDefault();
+        var tenantId = g.TenantId ?? mappedDevice?.TenantId;
+        var siteId = g.SiteId ?? mappedDevice?.SiteId;
+        var siteName = g.Site?.Name ?? mappedDevice?.Site?.Name ?? "— Unassigned —";
+        var tenantName = g.Tenant?.Name ?? mappedDevice?.Site?.Tenant?.Name;
+
+        return new GatewayDto(g.Id, tenantId, siteId, siteName, g.Name, g.IpAddress, g.LastSeenAt,
+            g.GatewayCode, g.Status.ToString(), g.LastMeasurementAt, g.FirmwareVersion, g.Rssi, g.BatteryPct,
+            g.Devices.Select(d => d.Name).ToList(), tenantName);
+    }
 }
