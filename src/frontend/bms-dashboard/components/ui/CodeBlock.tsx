@@ -28,7 +28,7 @@ export function CodeBlock({ label, value }: { label?: string; value: string }) {
           onClick={copy}
           title="Copy"
           aria-label="Copy to clipboard"
-          className="absolute top-1.5 right-1.5 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-background"
+          className="absolute top-1.5 right-1.5 p-1 rounded bg-card text-muted-foreground hover:text-foreground hover:bg-background"
         >
           {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
         </button>

@@ -13,6 +13,7 @@ import {
   Calculator,
   ChevronsLeft,
   ChevronsRight,
+  ChevronDown,
   Cpu,
   FileText,
   HardDriveDownload,
@@ -179,12 +180,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // h-screen + overflow-hidden pins the shell to exactly the viewport
     // height so it never grows with page content — only <main> below
     // scrolls internally, keeping the sidebar and header fixed in place.
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+    <div className="protec-shell flex h-dvh overflow-hidden bg-background text-foreground">
       {mobileOpen && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={closeMobile} aria-hidden="true" />}
       <aside
         className={`protec-sidebar fixed inset-y-0 left-0 z-40 w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] md:duration-150 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } ${collapsed ? "md:w-16" : "md:w-56"}`}
+        } ${collapsed ? "md:w-18" : "md:w-60"}`}
       >
         <div className={`relative flex shrink-0 items-center justify-center border-b border-sidebar-border py-3 ${collapsed ? "px-0" : "px-4"}`}>
           <Link href="/dashboard" onClick={closeMobile} aria-label="Pro-Tec Geosystems dashboard" className="flex min-w-0 flex-col items-center justify-center gap-1.5 text-center">
@@ -197,7 +198,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className={`h-auto ${collapsed ? "w-9" : "w-24"}`}
               />
             </span>
-            {!collapsed && <span className="text-xs text-muted-foreground">Smart Monitoring System</span>}
+            {!collapsed && <span className="text-[11px] tracking-wide text-muted-foreground">Smart Monitoring System</span>}
           </Link>
           <button onClick={closeMobile} className="absolute right-2 top-2 md:hidden p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close menu">
             <X className="h-5 w-5" />
@@ -206,7 +207,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <TenantSwitcher collapsed={collapsed} />
 
-        <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav aria-label="Main navigation" className="flex-1 py-2 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => !item.permission || hasPermission(user?.role, item.permission)) }))
             .filter((group) => group.items.length > 0)
             .map((group) => (
@@ -223,7 +224,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     onClick={closeMobile}
                     title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-3 px-4 py-2 text-sm mx-0 ${collapsed ? "justify-center px-0" : ""} ${
+                    aria-label={collapsed ? item.label : undefined}
+                    className={`protec-nav-item flex items-center gap-3 px-3 py-2 text-sm mx-2 rounded-lg ${collapsed ? "justify-center px-0" : ""} ${
                       active
                         ? "bg-primary/10 text-primary font-medium border-r-2 border-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -242,7 +244,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-current={isActive(pathname, "/settings") ? "page" : undefined}
               onClick={closeMobile}
               title={collapsed ? "Settings" : undefined}
-              className={`flex items-center gap-3 px-4 py-2 text-sm ${collapsed ? "justify-center px-0" : ""} ${
+              aria-label={collapsed ? "Settings" : undefined}
+              className={`protec-nav-item flex items-center gap-3 px-3 py-2 text-sm mx-2 rounded-lg ${collapsed ? "justify-center px-0" : ""} ${
                 isActive(pathname, "/settings")
                   ? "bg-primary/10 text-primary font-medium border-r-2 border-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -256,6 +259,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <button
           onClick={() => setCollapsed((c) => !c)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
           className="hidden md:flex items-center gap-2 px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted border-t border-sidebar-border"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4 mx-auto" /> : (
@@ -267,8 +272,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="h-14 shrink-0 border-b border-border bg-card flex items-center justify-between gap-2 px-3 md:px-6">
-          <div className="flex items-center gap-2 min-w-0">
+        <header className="protec-header relative isolate h-18 shrink-0 border-b border-border flex items-center justify-between gap-2 px-3 md:px-6">
+          <div aria-hidden="true" className="protec-header-art pointer-events-none absolute inset-0 -z-10" />
+          <div className="relative z-10 flex items-center gap-2 min-w-0">
             <button
               onClick={() => setMobileOpen(true)}
               className="md:hidden p-2 -ml-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -276,13 +282,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <h1 className="text-sm font-semibold text-foreground truncate">{pageTitle}</h1>
+            <div className="min-w-0 rounded-lg bg-background/85 px-2 py-1">
+              <p className="hidden sm:block text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Smart Monitoring System</p>
+              <p className="text-sm font-semibold text-foreground truncate">{pageTitle}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="relative z-10 flex items-center gap-1 rounded-xl bg-background/95 p-1">
             <NotificationBell />
             <div className="relative ml-1">
               <button
                 onClick={() => setUserMenuOpen((o) => !o)}
+                aria-label="Account menu"
+                aria-expanded={userMenuOpen}
                 className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-md hover:bg-muted"
               >
                 <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center shrink-0">
@@ -292,6 +303,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <div className="text-xs font-medium text-foreground">{user?.displayName}</div>
                   <div className="text-[11px] text-muted-foreground">{user?.role}</div>
                 </div>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
               </button>
               {userMenuOpen && (
                 <>
@@ -314,8 +326,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 min-w-0 overflow-y-auto overflow-x-auto">
-          <div className="w-full min-w-0 p-3 sm:p-4">
+        <main className="protec-workspace flex-1 min-w-0 overflow-y-auto overflow-x-auto">
+          <div className="protec-page w-full min-w-0 p-4 sm:p-5 lg:p-6">
             {blocked ? (
               <div className="text-center py-16 space-y-2">
                 <ShieldOff className="h-8 w-8 mx-auto text-muted-foreground" />

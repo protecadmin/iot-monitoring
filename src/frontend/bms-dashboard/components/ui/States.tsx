@@ -2,8 +2,8 @@ import { AlertTriangle, Inbox, Loader2, type LucideIcon } from "lucide-react";
 
 export function LoadingState({ label = "Loading..." }: { label?: string }) {
   return (
-    <div className="py-16 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-      <Loader2 className="h-5 w-5 animate-spin" />
+    <div role="status" className="py-16 flex flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+      <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
       {label}
     </div>
   );
@@ -11,7 +11,7 @@ export function LoadingState({ label = "Loading..." }: { label?: string }) {
 
 export function ErrorState({ message }: { message: string }) {
   return (
-    <div className="py-10 px-4 flex flex-col items-center justify-center gap-2 text-center text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg">
+    <div role="alert" className="py-10 px-4 flex flex-col items-center justify-center gap-3 text-center text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl">
       <AlertTriangle className="h-5 w-5" />
       {message}
     </div>
@@ -20,9 +20,9 @@ export function ErrorState({ message }: { message: string }) {
 
 export function EmptyState({ message, hint, icon: Icon = Inbox }: { message: string; hint?: string; icon?: LucideIcon }) {
   return (
-    <div className="py-16 flex flex-col items-center justify-center gap-2 text-center">
-      <Icon className="h-8 w-8 text-muted-foreground/50" />
-      <p className="text-sm text-muted-foreground">{message}</p>
+    <div className="py-14 px-5 flex flex-col items-center justify-center gap-3 text-center">
+      <span className="rounded-2xl bg-muted p-4"><Icon className="h-7 w-7 text-primary" aria-hidden="true" /></span>
+      <p className="text-sm font-medium text-foreground">{message}</p>
       {hint && <p className="text-xs text-muted-foreground/70 max-w-sm">{hint}</p>}
     </div>
   );
@@ -76,6 +76,11 @@ type BadgeTone = "success" | "warning" | "destructive" | "info" | "neutral";
 const STATUS_TONE: Record<string, BadgeTone> = {
   // Device lifecycle
   Online: "success",
+  Connected: "success",
+  Disconnected: "neutral",
+  Healthy: "success",
+  Live: "success",
+  Waiting: "warning",
   Offline: "neutral",
   Active: "success",
   Inactive: "neutral",
@@ -133,8 +138,8 @@ function spaceOutPascalCase(value: string): string {
 export function StatusBadge({ status }: { status: string }) {
   const tone = STATUS_TONE[status] ?? "neutral";
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${BADGE_CLASSES[tone]}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASSES[tone]}`} />
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${BADGE_CLASSES[tone]}`}>
+      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${DOT_CLASSES[tone]}`} />
       {spaceOutPascalCase(status)}
     </span>
   );

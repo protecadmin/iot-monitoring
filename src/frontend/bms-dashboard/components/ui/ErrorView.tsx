@@ -19,7 +19,7 @@ export function ErrorView({
   const Icon = notFound ? FileQuestion : AlertTriangle;
   return (
     <div className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="max-w-md text-center space-y-3">
+      <div className="max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm text-center space-y-3">
         <Icon className={`h-10 w-10 mx-auto ${notFound ? "text-muted-foreground" : "text-amber-500"}`} />
         <h1 className="text-lg font-semibold text-foreground">{notFound ? "Page not found" : "Something went wrong"}</h1>
         <p className="text-sm text-muted-foreground">

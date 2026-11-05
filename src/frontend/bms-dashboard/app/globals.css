@@ -9,33 +9,35 @@
  */
 /* One Protec palette throughout the application. */
 :root {
-  --background: #f5f5f0;
-  --foreground: #24382e;
+  --background: #fbf8f1;
+  --foreground: #073d2d;
   --card: #ffffff;
-  --card-foreground: #24382e;
+  --card-foreground: #073d2d;
   --popover: #ffffff;
-  --popover-foreground: #24382e;
-  --border: #dce2d9;
-  --input: #8b9e8c;
-  --form-field: #fffefa;
-  --form-placeholder: #607367;
-  --ring: #3b7b60;
-  --muted: #edf0e9;
-  --muted-foreground: #5b6b61;
-  --accent: #a85f36;
-  --accent-foreground: #fffefa;
-  --accent-soft: #f3e3d5;
-  --accent-ink: #854725;
-  --primary: #35694e;
+  --popover-foreground: #073d2d;
+  --border: #dde3dd;
+  --input: #bdcbc1;
+  --form-field: #ffffff;
+  --form-placeholder: #66796e;
+  --ring: #116844;
+  --muted: #f1f4ee;
+  --muted-foreground: #53665f;
+  --accent: #c9520c;
+  --accent-hover: #bc4c08;
+  --accent-navigation: #ed7625;
+  --accent-foreground: #ffffff;
+  --accent-soft: #fff0e3;
+  --accent-ink: #a64309;
+  --primary: #0b5138;
   --primary-foreground: #fffefa;
-  --secondary: #e7eddf;
-  --secondary-foreground: #294b36;
+  --secondary: #edf4ed;
+  --secondary-foreground: #0b5138;
   --destructive: #b42318;
   --destructive-foreground: #fffefa;
-  --success: #23734b;
+  --success: #188344;
   --success-foreground: #fffefa;
-  --success-muted: #e0eee0;
-  --success-muted-foreground: #23603c;
+  --success-muted: #e6f7e8;
+  --success-muted-foreground: #176c37;
   --warning: #966015;
   --warning-foreground: #fffefa;
   --warning-muted: #f7ecd4;
@@ -44,9 +46,11 @@
   --info-foreground: #fffefa;
   --info-muted: #e2eeeb;
   --info-muted-foreground: #315f64;
-  --sidebar: #f0ece3;
-  --sidebar-foreground: #294735;
-  --sidebar-border: #d8d4c8;
+  --sidebar: #063d2b;
+  --sidebar-foreground: #ffffff;
+  --sidebar-border: #ffffff1f;
+  --header: #fff8ef;
+  --surface-shadow: 0 2px 8px rgb(20 45 35 / 5%);
   --chart-1: #b7672c;
   --chart-2: #397657;
   --chart-3: #8f6c25;
@@ -93,8 +97,7 @@
 :root.protec-theme .equipment-cards { flex: 1; }
 :root.protec-theme .equipment-cards > a {
   min-height: 9.5rem;
-  background-image: linear-gradient(135deg, color-mix(in srgb, var(--equipment-accent) 3%, transparent), transparent 70%);
-  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--equipment-accent) 30%, transparent), 0 2px 7px #233b2b08;
+  box-shadow: var(--surface-shadow);
 }
 :root.protec-theme .equipment-cards > a:hover {
   background-color: var(--muted);
@@ -182,7 +185,7 @@ body {
 
 /* Login has one fixed Protec palette, independent of the dashboard theme. */
 .login-page {
-  --background: #f4f3ec;
+  --background: #fbf8f1;
   --foreground: #18392e;
   --card: #fffefa;
   --card-foreground: #18392e;
@@ -196,7 +199,7 @@ body {
   --form-placeholder: #607367;
   color: var(--foreground);
   color-scheme: light;
-  background: radial-gradient(ellipse at top right, #dae8d7 0%, transparent 55%), var(--background);
+  background: var(--background);
 }
 .login-page input {
   transition: border-color 150ms ease, box-shadow 150ms ease;
@@ -211,44 +214,224 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .login-page input { transition: none; }
 }
-/* A small warm accent identifies the active page without colouring all content. */
-:root.protec-theme nav a[aria-current="page"] {
-  border-right-color: var(--accent);
-  background-color: #ebe5d8;
-  color: #294735;
-}
-/* Matte clay accents for actions; ordinary links and the main surfaces stay green. */
+/* Preserve existing action handlers and use one presentation for primary actions. */
 :root.protec-theme :is(button, a).bg-primary {
   background-color: var(--accent);
   color: var(--accent-foreground);
-  box-shadow: none;
+  box-shadow: 0 1px 2px rgb(20 45 35 / 8%);
 }
 :root.protec-theme :is(button, a).bg-primary:hover:not(:disabled) {
-  background-color: #914f2e;
+  background-color: var(--accent-hover);
 }
 :root.protec-theme .telemetry-range button[aria-pressed="true"] {
   background-color: var(--accent-soft);
   color: var(--accent-ink);
-  border-color: #d6b59e;
+  border-color: var(--accent-navigation);
   box-shadow: none;
 }
 :root.protec-theme .telemetry-range button[aria-pressed="true"]:hover {
-  background-color: #ecd6c5;
+  background-color: var(--accent-soft);
 }
 /* Give navigation its own contrast; keep the workspace and reading cards neutral. */
 .protec-sidebar {
-  --foreground: #294735;
-  --muted-foreground: #5f6e61;
-  --muted: #e6e4d8;
-  --background: #f6f3eb;
-  --input: #9aa793;
-  --form-field: #faf8f2;
-  --form-placeholder: #657263;
-  --ring: #9d683c;
-  --primary: #355f45;
-  color-scheme: light;
+  --foreground: #ffffff;
+  --muted-foreground: #c4dacb;
+  --muted: #ffffff14;
+  --background: #0b5138;
+  --input: #799b87;
+  --form-field: #0b5138;
+  --form-placeholder: #c4dacb;
+  --ring: #bdd8c5;
+  --primary: #ffffff;
+  background-image: url('/brand/drilling-rig.png');
+  background-size: cover;
+  background-position: center bottom;
+  box-shadow: 3px 0 16px rgb(6 61 43 / 8%);
 }
 :root.protec-theme .equipment-cards > a {
   background-image: none;
-  box-shadow: none;
+  box-shadow: var(--surface-shadow);
+}
+
+.protec-sidebar nav {
+  background: rgb(6 61 43 / 22%);
+}
+.protec-sidebar .protec-nav-item {
+  min-height: 36px;
+  margin-bottom: 3px;
+  border-right: 0;
+  color: #e4eee7;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.protec-sidebar .protec-nav-item:hover {
+  background-color: #ffffff17;
+  color: white;
+}
+.protec-sidebar .protec-nav-item[aria-current="page"] {
+  background-color: var(--accent-navigation);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 8%);
+}
+.protec-header {
+  background-color: var(--header);
+  overflow: hidden;
+  isolation: isolate;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 2px 7px rgb(20 45 35 / 7%);
+}
+.protec-header-art {
+  background-image: url('/brand/construction-skyline.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: .78;
+  z-index: 0;
+}
+.protec-header .min-w-0.rounded-lg {
+  background: rgb(255 248 239 / 88%);
+  border: 1px solid rgb(255 255 255 / 52%);
+  padding: .35rem .7rem;
+  box-shadow: 0 1px 4px rgb(20 45 35 / 4%);
+}
+.protec-header .min-w-0.rounded-lg p:first-child {
+  color: var(--primary);
+  font-size: .61rem;
+  line-height: 1.15;
+  letter-spacing: .16em;
+}
+.protec-header .min-w-0.rounded-lg p:last-child {
+  color: var(--text-primary, var(--foreground));
+  font-size: .82rem;
+  line-height: 1.2;
+}
+.protec-header > div:last-child {
+  border: 1px solid rgb(221 227 221 / 80%);
+  box-shadow: 0 2px 8px rgb(20 45 35 / 7%);
+}
+.protec-header > div:last-child > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: .65rem;
+  color: var(--primary);
+}
+.protec-header > div:last-child > a:hover {
+  background-color: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.protec-header > div:last-child .relative > button {
+  min-height: 2.25rem;
+  border-radius: .65rem;
+}
+
+/* Shared presentation covers every existing module, including dynamic details. */
+.protec-page h1 {
+  font-size: clamp(1.5rem, 1.4rem + .3vw, 1.875rem);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+.protec-page h2 {
+  letter-spacing: -.015em;
+}
+.protec-page > :where(div, main) > :first-child:has(h1) {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.protec-page > main {
+  padding: 0;
+}
+.protec-page :where(.bg-card.border) {
+  border-radius: 14px;
+  box-shadow: var(--surface-shadow);
+}
+.protec-page :where(table) {
+  background-color: var(--card);
+  font-size: .8125rem;
+  line-height: 1.5;
+}
+.protec-page :where(thead) {
+  background-color: var(--muted);
+  color: var(--primary);
+}
+.protec-page :where(th) {
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .045em;
+  padding-top: .8rem;
+  padding-bottom: .8rem;
+}
+.protec-page :where(td) {
+  border-color: var(--border);
+  padding-top: .75rem;
+  padding-bottom: .75rem;
+}
+.protec-page :where(tbody tr):hover {
+  background-color: #f5f8f2;
+}
+.protec-page :where(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="hidden"]) {
+  border-radius: 8px;
+  min-height: 36px;
+  border-color: var(--input);
+}
+.protec-shell :where(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.protec-shell :where(button, a) {
+  -webkit-tap-highlight-color: transparent;
+}
+.protec-shell :where(button) {
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.protec-shell :where(button):disabled {
+  cursor: not-allowed;
+}
+.protec-page :where(button.border) {
+  border-radius: 8px;
+}
+.protec-page :is(button, a).bg-primary {
+  border-radius: 8px;
+  min-height: 36px;
+}
+.protec-page :where(button.border):hover:not(:disabled) {
+  border-color: var(--primary);
+}
+.protec-page :where(button.border-b-2) {
+  border-radius: 8px 8px 0 0;
+}
+.protec-page :where(button.border-b-2.border-primary) {
+  border-bottom-color: var(--accent);
+  color: var(--accent-ink);
+  background-color: var(--accent-soft);
+}
+.protec-page :where(pre) {
+  background-color: var(--sidebar);
+  color: #e4eee7;
+  border-radius: 8px;
+  padding: 12px;
+  line-height: 1.65;
+}
+.protec-workspace {
+  scrollbar-color: var(--input) var(--background);
+  scrollbar-width: thin;
+  scroll-padding: 1.5rem;
+}
+@media (max-width: 639px) {
+  .protec-header-art { background-size: cover; background-position: 38% center; }
+  .protec-page h1 { font-size: 1.5rem; }
+  .protec-page > :where(div, main) > :first-child:has(h1) { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .protec-shell *, .protec-shell *::before, .protec-shell *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -127,7 +127,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
         {isSuperAdmin && <Stat label="Tenants" value={tenantsQuery.data?.totalCount ?? "—"} icon={Building2} href="/tenants" />}
         <Stat label="Sites" value={sitesQuery.data?.totalCount ?? "—"} icon={MapPin} href="/sites" />
         <Stat label="Devices" value={scopedDevices.length} icon={Cpu} href="/devices" />
@@ -170,11 +170,11 @@ function Stat({ label, value, tone, icon: Icon, href }: { label: string; value: 
   return (
     <Link
       href={href}
-      className="bg-card border border-border rounded-lg px-3 py-2 shadow-sm flex items-center justify-between gap-2 hover:border-primary transition-colors"
+      className="bg-card border border-border rounded-xl px-4 py-4 shadow-sm flex items-center justify-between gap-2 hover:border-primary transition-colors"
     >
       <div className="min-w-0">
-        <div className="text-[11px] text-muted-foreground truncate">{label}</div>
-        <div className={`text-lg font-semibold leading-tight tabular-nums ${tone ?? "text-foreground"}`}>{value}</div>
+        <div className="text-[11px] font-medium text-muted-foreground truncate">{label}</div>
+        <div className={`mt-2 text-2xl font-semibold leading-tight tabular-nums ${tone ?? "text-foreground"}`}>{value}</div>
       </div>
       <Icon className={`h-4 w-4 shrink-0 ${tone ?? "text-muted-foreground"}`} />
     </Link>
