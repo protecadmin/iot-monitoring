@@ -215,7 +215,7 @@ export default function HubDetailPage() {
   ];
 
   return (
-    <main className="space-y-6 p-6 lg:p-8">
+    <main className="hub-detail-page space-y-6 p-6 lg:p-8">
       {/* Header */}
       <div>
         <Link href="/hubs" className="text-sm font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1">

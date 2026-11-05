@@ -418,6 +418,89 @@ body {
   padding: 12px;
   line-height: 1.65;
 }
+.gateway-detail-page,
+.hub-detail-page {
+  max-width: 1700px;
+  margin-inline: auto;
+}
+.gateway-detail-page > div:first-child,
+.hub-detail-page > div:first-child {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.gateway-detail-page > section,
+.hub-detail-page > section {
+  min-width: 0;
+}
+.gateway-detail-page > section > div,
+.hub-detail-page > section > div {
+  min-width: 0;
+  border-radius: 14px;
+  box-shadow: var(--surface-shadow);
+}
+.gateway-detail-page > section:first-of-type,
+.hub-detail-page > section:first-of-type {
+  gap: .75rem;
+}
+.gateway-detail-page > section:first-of-type > div,
+.hub-detail-page > section:first-of-type > div {
+  padding: .85rem 1rem;
+}
+.gateway-detail-page > section:nth-of-type(2) > div,
+.hub-detail-page > section:nth-of-type(2) > div {
+  padding: 1rem;
+}
+.gateway-detail-page button,
+.hub-detail-page button {
+  border-radius: 8px;
+  font-weight: 600;
+}
+.gateway-detail-page > section:nth-of-type(2) button {
+  min-height: 58px;
+  justify-content: center;
+  border-color: var(--border);
+  background: var(--surface-muted, #f7f4ed);
+}
+.gateway-detail-page > section:nth-of-type(2) button:hover:not(:disabled),
+.hub-detail-page button:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--accent-soft);
+}
+.gateway-detail-page > section:nth-of-type(3),
+.hub-detail-page > section:nth-of-type(3) {
+  gap: .75rem;
+}
+.gateway-detail-page code,
+.hub-detail-page code {
+  background: #f4f6f1;
+  color: var(--primary);
+  border: 1px solid var(--border-soft);
+}
+.gateway-detail-page details > summary,
+.hub-detail-page details > summary {
+  color: var(--primary);
+}
+@media (min-width: 1280px) {
+  .gateway-detail-page > section:first-of-type {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .gateway-detail-page > section:nth-of-type(2) {
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, .95fr);
+  }
+  .hub-detail-page > section:nth-of-type(2) {
+    grid-template-columns: minmax(0, 1.2fr) minmax(360px, .9fr);
+  }
+}
+@media (max-width: 767px) {
+  .gateway-detail-page,
+  .hub-detail-page {
+    padding: .9rem;
+  }
+  .gateway-detail-page > section:first-of-type,
+  .hub-detail-page > section:first-of-type {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .protec-workspace {
   scrollbar-color: var(--input) var(--background);
   scrollbar-width: thin;

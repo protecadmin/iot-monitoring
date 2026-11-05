@@ -243,7 +243,7 @@ public sealed class MqttIngestionWorker : BackgroundService
                 _logger.LogInformation("Command acknowledgement from gateway {Gateway}: {Payload}", topic.DeviceCode,
                     PayloadPreview(message.Payload));
                 await services.GetRequiredService<IRealtimeNotifier>().GatewayMessageReceivedAsync(
-                    new GatewayMessageUpdate(topic.DeviceCode, message.Address, DateTimeOffset.UtcNow, PayloadPreview(message.Payload)), ct);
+                    new GatewayMessageUpdate(topic.DeviceCode, message.Address, DateTimeOffset.UtcNow, System.Text.Encoding.UTF8.GetString(message.Payload)), ct);
                 break;
             case "heartbeat":
                 await HandleHeartbeatAsync(services, topic, ct);
@@ -263,7 +263,7 @@ public sealed class MqttIngestionWorker : BackgroundService
                 // telemetry decoder: its shape is command-specific and the
                 // frontend renders the JSON fields dynamically.
                 await services.GetRequiredService<IRealtimeNotifier>().GatewayMessageReceivedAsync(
-                    new GatewayMessageUpdate(topic.DeviceCode, message.Address, DateTimeOffset.UtcNow, PayloadPreview(message.Payload)), ct);
+                    new GatewayMessageUpdate(topic.DeviceCode, message.Address, DateTimeOffset.UtcNow, System.Text.Encoding.UTF8.GetString(message.Payload)), ct);
                 break;
         }
     }
@@ -417,8 +417,10 @@ public sealed class MqttIngestionWorker : BackgroundService
             if (network.TryGetProperty("rssi_dbm", out var rssiValue) && rssiValue.TryGetInt32(out var parsedRssi)) rssi = parsedRssi;
         }
         await services.GetRequiredService<IGatewayRepository>().UpdateHealthAsync(gatewayCode, ip, firmware, rssi, ct);
+        // Live consumers parse this JSON. Only log previews may be truncated;
+        // cutting the packet at 512 bytes makes otherwise valid status JSON unreadable.
         await services.GetRequiredService<IRealtimeNotifier>().GatewayMessageReceivedAsync(
-            new GatewayMessageUpdate(gatewayCode, message.Address, DateTimeOffset.UtcNow, PayloadPreview(message.Payload)), ct);
+            new GatewayMessageUpdate(gatewayCode, message.Address, DateTimeOffset.UtcNow, System.Text.Encoding.UTF8.GetString(message.Payload)), ct);
     }
 
     private static async Task HandleTelemetryAsync(IServiceProvider services, TransportMessage message, CancellationToken ct)
