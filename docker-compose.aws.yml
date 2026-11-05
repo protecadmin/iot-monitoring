@@ -48,11 +48,11 @@ services:
     image: protec-web:${RELEASE_TAG:-current}
     build:
       args:
-        NEXT_PUBLIC_API_URL: ""
-        NEXT_PUBLIC_WS_URL: ""
+        NEXT_PUBLIC_API_URL: ${PUBLIC_ORIGIN:-https://52.74.238.107}
+        NEXT_PUBLIC_WS_URL: ${PUBLIC_ORIGIN:-https://52.74.238.107}
     environment:
-      NEXT_PUBLIC_API_URL: ""
-      NEXT_PUBLIC_WS_URL: ""
+      NEXT_PUBLIC_API_URL: ${PUBLIC_ORIGIN:-https://52.74.238.107}
+      NEXT_PUBLIC_WS_URL: ${PUBLIC_ORIGIN:-https://52.74.238.107}
     ports: !override ["127.0.0.1:3000:3000"]
     logging: *logging
   proxy:
