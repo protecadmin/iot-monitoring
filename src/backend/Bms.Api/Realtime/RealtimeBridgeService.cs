@@ -82,7 +82,8 @@ public sealed class RealtimeBridgeService : BackgroundService
                 return;
 
             var payloadElement = JsonDocument.Parse(payload).RootElement;
-            await _hub.Clients.Group(RealtimeGroups.Tenant(tenantId)).SendAsync(eventName, payloadElement, ct);
+            if (tenantId != Guid.Empty.ToString())
+                await _hub.Clients.Group(RealtimeGroups.Tenant(tenantId)).SendAsync(eventName, payloadElement, ct);
             await _hub.Clients.Group(RealtimeGroups.AllTenants).SendAsync(eventName, payloadElement, ct);
         }
         catch (Exception ex)

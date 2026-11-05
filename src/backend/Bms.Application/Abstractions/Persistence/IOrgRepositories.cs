@@ -33,6 +33,7 @@ public interface IGatewayRepository
     Task DeleteAsync(Gateway gateway, CancellationToken ct);
     Task<Gateway?> GetByCodeAsync(string gatewayCode, CancellationToken ct);
     Task TouchAsync(string gatewayCode, DateTimeOffset seenAt, bool measurement, CancellationToken ct);
+    Task UpdateHealthAsync(string gatewayCode, string? ipAddress, string? firmwareVersion, int? rssi, CancellationToken ct);
 }
 
 public interface IDeviceTypeRepository

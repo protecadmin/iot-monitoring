@@ -27,6 +27,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       Encryption__Key: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
       Cors__AllowedOrigins__0: ${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is required}
+      Cors__AllowedOrigins__1: http://localhost:3000
       Firmware__PublicBaseUrl: ${PUBLIC_ORIGIN}
       Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:?BOOTSTRAP_ADMIN_EMAIL is required}
       Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:?BOOTSTRAP_ADMIN_PASSWORD is required}

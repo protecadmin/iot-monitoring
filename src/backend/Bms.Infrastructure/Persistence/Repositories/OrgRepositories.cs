@@ -70,7 +70,9 @@ public sealed class SiteRepository(BmsDbContext db) : ISiteRepository
 public sealed class GatewayRepository(BmsDbContext db) : IGatewayRepository
 {
     public Task<Gateway?> GetByIdAsync(Guid? tenantId, Guid id, CancellationToken ct) =>
-          db.Gateways.Include(g => g.Site).Include(g => g.Tenant).Include(g => g.Devices).FirstOrDefaultAsync(g => g.Id == id && (tenantId == null || g.TenantId == tenantId), ct);
+          db.Gateways.Include(g => g.Site).Include(g => g.Tenant)
+              .Include(g => g.Devices).ThenInclude(d => d.Site).ThenInclude(s => s.Tenant)
+              .FirstOrDefaultAsync(g => g.Id == id && (tenantId == null || g.TenantId == tenantId), ct);
 
     public Task<PagedResult<Gateway>> ListAsync(Guid? tenantId, Guid? siteId, PageRequest request, CancellationToken ct)
     {
@@ -134,6 +136,16 @@ public sealed class GatewayRepository(BmsDbContext db) : IGatewayRepository
               gateway.Status = GatewayStatus.Online;
               if (measurement) gateway.LastMeasurementAt = seenAt;
           }
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateHealthAsync(string gatewayCode, string? ipAddress, string? firmwareVersion, int? rssi, CancellationToken ct)
+    {
+        var gateway = await db.Gateways.FirstOrDefaultAsync(g => g.GatewayCode == gatewayCode, ct);
+        if (gateway is null) return;
+        gateway.IpAddress = ipAddress ?? gateway.IpAddress;
+        gateway.FirmwareVersion = firmwareVersion ?? gateway.FirmwareVersion;
+        gateway.Rssi = rssi ?? gateway.Rssi;
         await db.SaveChangesAsync(ct);
     }
 }

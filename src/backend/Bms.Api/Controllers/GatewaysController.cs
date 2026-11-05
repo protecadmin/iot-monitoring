@@ -3,8 +3,10 @@ using Bms.Api.Dtos;
 using Bms.Application.Abstractions.Persistence;
 using Bms.Application.Common;
 using Bms.Domain.Entities;
+using Bms.Protocols.Transports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace Bms.Api.Controllers;
 
@@ -12,7 +14,7 @@ namespace Bms.Api.Controllers;
 [ApiController]
 [Route("api/gateways")]
 [Authorize]
-public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRepository auditLog) : BmsControllerBase
+public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRepository auditLog, MqttTransportAdapter mqtt) : BmsControllerBase
 {
     [HttpGet]
     [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")] // not Customer: integration detail
@@ -130,6 +132,29 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
         return NoContent();
     }
 
+    /// <summary>Send one of the gateway's documented control requests.</summary>
+    [HttpPost("{id:guid}/commands")]
+    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    public async Task<IActionResult> Command(Guid id, [FromQuery] Guid? tenantId, GatewayCommandRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Op) || request.Op.Length > 64)
+            throw ApiException.BadRequest("A gateway command operation is required", "GATEWAY_COMMAND_REQUIRED");
+        if (request.Op is not ("get_capabilities" or "get_config" or "get_status" or "get_latest" or "get_history" or "get_logs" or "recover_cellular" or "set_config"))
+            throw ApiException.BadRequest("Unsupported gateway command", "GATEWAY_COMMAND_UNSUPPORTED");
+
+        if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
+        var gateway = await gateways.GetByIdAsync(EffectiveTenantFilter(tenantId), id, ct)
+            ?? throw ApiException.NotFound("Gateway not found", "GATEWAY_NOT_FOUND");
+
+        var envelope = new Dictionary<string, object?> { ["v"] = 1, ["id"] = Guid.NewGuid().ToString("N"), ["op"] = request.Op };
+        if (request.Payload.ValueKind is not JsonValueKind.Undefined and not JsonValueKind.Null)
+            envelope["payload"] = request.Payload;
+        var topic = $"protec/gateway/{gateway.GatewayCode}/command";
+        await mqtt.SendAsync(topic, JsonSerializer.SerializeToUtf8Bytes(envelope), ct);
+        await auditLog.AddAsync(new AuditLog { TenantId = gateway.TenantId, UserId = CurrentUserId, Action = "Gateway.Command", EntityType = nameof(Gateway), EntityId = gateway.Id.ToString(), DetailsJson = JsonSerializer.Serialize(new { request.Op, topic }) }, ct);
+        return Accepted(new { topic, operation = request.Op });
+    }
+
     private static GatewayDto Map(Gateway g)
     {
         var mappedDevice = g.Devices.FirstOrDefault();
@@ -143,3 +168,5 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
             g.Devices.Select(d => d.Name).ToList(), tenantName);
     }
 }
+
+public sealed record GatewayCommandRequest(string Op, JsonElement Payload);

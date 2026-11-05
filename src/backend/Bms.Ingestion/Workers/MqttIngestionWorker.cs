@@ -78,11 +78,10 @@ public sealed class MqttIngestionWorker : BackgroundService
             await _mqtt.SubscribeAsync(_options.TelemetryTopicFilter, stoppingToken);
             await _mqtt.SubscribeAsync(_options.HeartbeatTopicFilter, stoppingToken);
             await _mqtt.SubscribeAsync(_options.CommandAckTopicFilter, stoppingToken);
-            await _mqtt.SubscribeAsync("iot/+/+/+/events", stoppingToken);
-            await _mqtt.SubscribeAsync("iot/+/+/+/status", stoppingToken);
             await _mqtt.SubscribeAsync("protec/gateway/+/measurement", stoppingToken);
             await _mqtt.SubscribeAsync("protec/gateway/+/health", stoppingToken);
             await _mqtt.SubscribeAsync("protec/gateway/+/status", stoppingToken);
+            await _mqtt.SubscribeAsync("protec/gateway/+/ack", stoppingToken);
 
             var customTopics = new HashSet<string>(StringComparer.Ordinal);
             while (!stoppingToken.IsCancellationRequested)
@@ -216,6 +215,12 @@ public sealed class MqttIngestionWorker : BackgroundService
             case "telemetry":
                 await HandleTelemetryAsync(services, message, ct);
                 break;
+            case "ack":
+                _logger.LogInformation("Command acknowledgement from gateway {Gateway}: {Payload}", topic.DeviceCode,
+                    PayloadPreview(message.Payload));
+                await services.GetRequiredService<IRealtimeNotifier>().GatewayMessageReceivedAsync(
+                    new GatewayMessageUpdate(topic.DeviceCode, message.Address, DateTimeOffset.UtcNow, PayloadPreview(message.Payload)), ct);
+                break;
             case "heartbeat":
                 await HandleHeartbeatAsync(services, topic, ct);
                 break;
@@ -223,11 +228,10 @@ public sealed class MqttIngestionWorker : BackgroundService
                 await HandleEventAsync(services, topic, message, ct);
                 break;
             case "commands/ack":
-                await HandleCommandAckAsync(services, message, ct);
+            await HandleCommandAckAsync(services, message, topic.DeviceCode, ct);
                 break;
             case "status":
-                _logger.LogInformation("Status message from {Device}: {Payload}", topic.DeviceCode,
-                    System.Text.Encoding.UTF8.GetString(message.Payload));
+                await HandleGatewayStatusAsync(services, topic.DeviceCode, message, ct);
                 break;
             default:
                 _logger.LogWarning("Unhandled MQTT message type '{MessageType}' on topic {Topic}", topic.MessageType, message.Address);
@@ -237,6 +241,25 @@ public sealed class MqttIngestionWorker : BackgroundService
 
     private static string PayloadPreview(byte[] payload) =>
         System.Text.Encoding.UTF8.GetString(payload, 0, Math.Min(payload.Length, 512));
+
+    private static async Task HandleGatewayStatusAsync(IServiceProvider services, string gatewayCode, TransportMessage message, CancellationToken ct)
+    {
+        using var document = JsonDocument.Parse(message.Payload);
+        var root = document.RootElement;
+        string? firmware = null;
+        if (root.TryGetProperty("firmware", out var fw) && fw.ValueKind == JsonValueKind.Object)
+            firmware = fw.EnumerateObject().Select(p => p.Value.GetString()).FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+        string? ip = null;
+        int? rssi = null;
+        if (root.TryGetProperty("network", out var network) && network.ValueKind == JsonValueKind.Object)
+        {
+            if (network.TryGetProperty("ip", out var ipValue)) ip = ipValue.GetString();
+            if (network.TryGetProperty("rssi_dbm", out var rssiValue) && rssiValue.TryGetInt32(out var parsedRssi)) rssi = parsedRssi;
+        }
+        await services.GetRequiredService<IGatewayRepository>().UpdateHealthAsync(gatewayCode, ip, firmware, rssi, ct);
+        await services.GetRequiredService<IRealtimeNotifier>().GatewayMessageReceivedAsync(
+            new GatewayMessageUpdate(gatewayCode, message.Address, DateTimeOffset.UtcNow, PayloadPreview(message.Payload)), ct);
+    }
 
     private static async Task HandleTelemetryAsync(IServiceProvider services, TransportMessage message, CancellationToken ct)
     {
@@ -315,12 +338,14 @@ public sealed class MqttIngestionWorker : BackgroundService
         await notifier.FirmwareDeploymentUpdatedAsync(deployment, ct);
     }
 
-    private static async Task HandleCommandAckAsync(IServiceProvider services, TransportMessage message, CancellationToken ct)
+    private static async Task HandleCommandAckAsync(IServiceProvider services, TransportMessage message, string gatewayCode, CancellationToken ct)
     {
         using var document = JsonDocument.Parse(message.Payload);
         var root = document.RootElement;
-        var commandId = root.GetProperty("commandId").GetGuid();
-        var statusText = root.GetProperty("status").GetString() ?? "FAILED";
+        var raw = PayloadPreview(message.Payload);
+        if (!root.TryGetProperty("commandId", out var commandIdProp) || !commandIdProp.TryGetGuid(out var commandId))
+            return;
+        var statusText = root.TryGetProperty("status", out var statusProp) ? statusProp.GetString() ?? "FAILED" : "FAILED";
 
         var commands = services.GetRequiredService<IDeviceCommandRepository>();
         var command = await commands.GetByIdAsync(commandId, ct);

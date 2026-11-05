@@ -18,4 +18,5 @@ public interface IRealtimeNotifier
     Task CommandStatusChangedAsync(DeviceCommand command, CancellationToken ct);
     Task FirmwareDeploymentUpdatedAsync(FirmwareDeployment deployment, CancellationToken ct);
     Task CalculationUpdatedAsync(CalculationUpdate update, CancellationToken ct);
+    Task GatewayMessageReceivedAsync(GatewayMessageUpdate update, CancellationToken ct);
 }

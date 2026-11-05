@@ -106,6 +106,23 @@ public sealed class MqttRealtimeNotifier : IRealtimeNotifier
             update.Timestamp
         }, ct);
 
+    public Task GatewayMessageReceivedAsync(GatewayMessageUpdate update, CancellationToken ct) =>
+        PublishGlobalAsync("GatewayMessageReceived", new
+        {
+            update.GatewayCode,
+            update.Topic,
+            update.ReceivedAt,
+            update.Payload
+        }, ct);
+
+    private async Task PublishGlobalAsync(string eventName, object payload, CancellationToken ct)
+    {
+        if (!_mqtt.IsConnected) return;
+        var envelope = JsonSerializer.SerializeToUtf8Bytes(new { tenantId = Guid.Empty, eventName, payload }, EnvelopeOptions);
+        try { await _mqtt.SendAsync(BridgeTopic, envelope, ct); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to publish global real-time bridge event {Event}", eventName); }
+    }
+
     private static object MapAlert(Alert alert) => new
     {
         alert.Id,

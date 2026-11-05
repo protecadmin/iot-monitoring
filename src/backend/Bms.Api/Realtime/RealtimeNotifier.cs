@@ -86,6 +86,9 @@ public sealed class RealtimeNotifier : IRealtimeNotifier
             update.Timestamp
         }, ct);
 
+    public Task GatewayMessageReceivedAsync(GatewayMessageUpdate update, CancellationToken ct) =>
+        _hub.Clients.Group(RealtimeGroups.AllTenants).SendAsync("GatewayMessageReceived", update, ct);
+
     private static object MapAlert(Alert alert) => new
     {
         alert.Id,

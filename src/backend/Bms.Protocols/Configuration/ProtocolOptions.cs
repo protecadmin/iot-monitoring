@@ -11,9 +11,9 @@ public sealed class MqttOptions
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public int KeepAliveSeconds { get; set; } = 30;
-    public string TelemetryTopicFilter { get; set; } = "iot/+/+/+/telemetry";
-    public string HeartbeatTopicFilter { get; set; } = "iot/+/+/+/heartbeat";
-    public string CommandAckTopicFilter { get; set; } = "iot/+/+/+/commands/ack";
+    public string TelemetryTopicFilter { get; set; } = "protec/gateway/+/measurement";
+    public string HeartbeatTopicFilter { get; set; } = "protec/gateway/+/health";
+    public string CommandAckTopicFilter { get; set; } = "protec/gateway/+/ack";
 
     /// <summary>
     /// MQTT 5 Session Expiry Interval. Non-zero makes the broker keep this
