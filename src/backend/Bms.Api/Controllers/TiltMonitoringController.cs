@@ -24,7 +24,7 @@ public sealed class TiltMonitoringController(IDeviceRepository devices,ITiltMoni
     }
 
     [HttpPut]
-    [Authorize(Roles="SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<TiltSummary>> Configure(Guid deviceId,ConfigureTiltRequest request,CancellationToken ct)
     {
         var device=await devices.GetByIdAsync(deviceId,ct)??throw ApiException.NotFound("Device not found","DEVICE_NOT_FOUND");

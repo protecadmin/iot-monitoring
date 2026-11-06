@@ -12,9 +12,9 @@ public sealed record ChangePasswordRequest(string CurrentPassword, string NewPas
 
 public sealed record UserDto(Guid Id, string Email, string DisplayName, string Role, Guid? TenantId);
 
-public sealed record ManagedUserDto(Guid Id, string Email, string DisplayName, string Role, Guid? TenantId, bool IsActive, DateTimeOffset CreatedAt, string? TelegramChatId);
+public sealed record ManagedUserDto(Guid Id, string Email, string DisplayName, string Role, Guid? TenantId, bool IsActive, DateTimeOffset CreatedAt, string? TelegramChatId, IReadOnlyList<Guid>? AllowedSiteIds = null);
 
-public sealed record CreateUserRequest(string Email, string DisplayName, string Password, string Role, Guid? TenantId, string? TelegramChatId);
+public sealed record CreateUserRequest(string Email, string DisplayName, string Password, string Role, Guid? TenantId, string? TelegramChatId, IReadOnlyList<Guid>? AllowedSiteIds = null);
 
 // Role and Password are optional — omit (or send empty) to keep the current value.
-public sealed record UpdateUserRequest(string DisplayName, string? TelegramChatId, string? Role = null, string? Password = null);
+public sealed record UpdateUserRequest(string DisplayName, string? TelegramChatId, string? Role = null, string? Password = null, IReadOnlyList<Guid>? AllowedSiteIds = null);

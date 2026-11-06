@@ -16,7 +16,7 @@ namespace Bms.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/audit-log")]
-[Authorize(Roles = "SuperAdmin,Admin")]
+[Authorize(Roles = "SuperAdmin")]
 public sealed class AuditLogsController(IAuditLogRepository auditLog, ITenantRepository tenants, IUserRepository users) : BmsControllerBase
 {
     [HttpGet]

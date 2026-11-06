@@ -30,7 +30,7 @@ public sealed class AuthController(
         if (user is null || !user.IsActive || !hasher.Verify(request.Password, user.PasswordHash))
             throw ApiException.BadRequest("Invalid email or password", "INVALID_CREDENTIALS");
 
-        var roleName = user.Role?.Name ?? "Viewer";
+        var roleName = RequireReviewedRole(user);
         var tokens = jwt.IssueTokens(user, roleName);
         await PersistRefreshTokenAsync(user.Id, tokens.RefreshToken, ct);
 
@@ -70,7 +70,7 @@ public sealed class AuthController(
         if (user is null || !user.IsActive)
             throw ApiException.BadRequest("Invalid refresh token", "INVALID_REFRESH_TOKEN");
 
-        var roleName = user.Role?.Name ?? "Viewer";
+        var roleName = RequireReviewedRole(user);
         var newTokens = jwt.IssueTokens(user, roleName);
         var newEntity = await PersistRefreshTokenAsync(user.Id, newTokens.RefreshToken, ct);
 
@@ -145,7 +145,7 @@ public sealed class AuthController(
             DetailsJson = System.Text.Json.JsonSerializer.Serialize(new { user.Email })
         }, ct);
 
-        var roleName = user.Role?.Name ?? "Viewer";
+        var roleName = RequireReviewedRole(user);
         var tokens = jwt.IssueTokens(user, roleName);
         await PersistRefreshTokenAsync(user.Id, tokens.RefreshToken, ct);
         return Ok(new LoginResponse(
@@ -153,6 +153,15 @@ public sealed class AuthController(
             tokens.AccessTokenExpiresAt,
             tokens.RefreshToken,
             new UserDto(user.Id, user.Email, user.DisplayName, roleName, user.TenantId)));
+    }
+
+    private static string RequireReviewedRole(User user)
+    {
+        if (!Bms.Domain.AccessRoles.IsSupported(user.Role?.Name) ||
+            (!Bms.Domain.AccessRoles.IsPlatform(user.Role?.Name) && user.TenantId is null) ||
+            (user.Role?.Name == Bms.Domain.AccessRoles.Executive && user.TenantId is not null))
+            throw ApiException.Forbidden("Your account requires an administrator role and site access review", "ROLE_REVIEW_REQUIRED");
+        return user.Role!.Name;
     }
 
     private async Task<RefreshToken> PersistRefreshTokenAsync(Guid userId, string rawRefreshToken, CancellationToken ct) =>

@@ -42,8 +42,8 @@ export default function AuditLogPage() {
     [effectiveTenantId, page],
   );
 
-  if (user?.role !== "SuperAdmin" && user?.role !== "Admin") {
-    return <p className="text-sm text-muted-foreground">Only SuperAdmin and Admin accounts can view the audit log.</p>;
+  if (user?.role !== "SuperAdmin") {
+    return <p className="text-sm text-muted-foreground">Only SuperAdmin accounts can view the audit log.</p>;
   }
 
   const totalPages = query.data ? Math.max(1, Math.ceil(query.data.totalCount / pageSize)) : 1;

@@ -8,6 +8,13 @@ public sealed class BmsDbContext : DbContext
 {
     public BmsDbContext(DbContextOptions<BmsDbContext> options) : base(options) { }
 
+    // Set by authenticated API middleware only. Worker/design-time contexts remain unrestricted.
+    public bool EnforceAccessScope { get; set; }
+    public Guid? AccessTenantId { get; set; }
+    public bool RestrictToSites { get; set; }
+    public Guid[] AllowedSiteIds { get; set; } = [];
+    public DbSet<UserSiteAccess> UserSiteAccess => Set<UserSiteAccess>();
+
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Site> Sites => Set<Site>();
     public DbSet<Device> Devices => Set<Device>();
@@ -46,6 +53,17 @@ public sealed class BmsDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<UserSiteAccess>(e =>
+        {
+            e.HasKey(x => new { x.UserId, x.SiteId });
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Site>().WithMany().HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Tenant>().HasQueryFilter(t => !EnforceAccessScope || AccessTenantId == null || t.Id == AccessTenantId);
+        modelBuilder.Entity<Site>().HasQueryFilter(s => !EnforceAccessScope || ((AccessTenantId == null || s.TenantId == AccessTenantId) && (!RestrictToSites || AllowedSiteIds.Contains(s.Id))));
+        modelBuilder.Entity<Device>().HasQueryFilter(d => !EnforceAccessScope || ((AccessTenantId == null || d.TenantId == AccessTenantId) && (!RestrictToSites || AllowedSiteIds.Contains(d.SiteId))));
+        modelBuilder.Entity<Alert>().HasQueryFilter(a => !EnforceAccessScope || ((AccessTenantId == null || a.TenantId == AccessTenantId) && (!RestrictToSites || Devices.Any(d => d.Id == a.DeviceId))));
+        modelBuilder.Entity<AlertRule>().HasQueryFilter(r => !EnforceAccessScope || ((AccessTenantId == null || r.TenantId == AccessTenantId) && (!RestrictToSites || ((r.SiteId == null || AllowedSiteIds.Contains(r.SiteId.Value)) && (r.DeviceId == null || Devices.Any(d => d.Id == r.DeviceId))))));
         modelBuilder.Entity<Tenant>(e =>
         {
             e.HasIndex(x => x.Slug).IsUnique();

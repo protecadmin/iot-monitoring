@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { KeyRound, Mail, MessageCircle, Send, Settings as SettingsIcon, User } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { roleLabel } from "@/lib/auth/permissions";
 import { useApi } from "@/hooks/useApi";
 import { SmtpSettingsApi, TelegramSettingsApi, TenantsApi } from "@/lib/api/resources";
 import { ApiError } from "@/lib/api/client";
@@ -103,7 +104,7 @@ function NotificationsSection() {
         {query.data && <StatusBadge status={query.data.host ? "Configured" : "Not configured"} />}
       </div>
       <p className="text-xs text-muted-foreground">
-        Emails a tenant&apos;s SuperAdmin/Admin/Engineer users when a Critical-severity alert fires. Leave Host blank to keep email alerts disabled —
+        Emails a tenant&apos;s Company Admin and assigned Site Admin users when a Critical-severity alert fires. Leave Host blank to keep email alerts disabled —
         everything still shows up live in the dashboard either way.
       </p>
 
@@ -245,7 +246,7 @@ function TelegramSection() {
         {query.data && <StatusBadge status={query.data.hasBotToken ? "Configured" : "Not configured"} />}
       </div>
       <p className="text-xs text-muted-foreground">
-        Free alternative/addition to email — messages a tenant&apos;s SuperAdmin/Admin/Engineer users on Telegram when a Critical-severity alert
+        Free alternative/addition to email — messages a tenant&apos;s Company Admin and assigned Site Admin users on Telegram when a Critical-severity alert
         fires, for any of them who&apos;ve set a Telegram Chat ID on their user account (Users page). Create a bot via @BotFather to get a token.
       </p>
 
@@ -384,11 +385,11 @@ export default function SettingsPage() {
             <span className="text-muted-foreground">Email:</span> <span className="text-foreground">{user?.email}</span>
           </div>
           <div>
-            <span className="text-muted-foreground">Role:</span> <span className="text-foreground">{user?.role}</span>
+            <span className="text-muted-foreground">Role:</span> <span className="text-foreground">{roleLabel(user?.role)}</span>
           </div>
           <div>
             <span className="text-muted-foreground">Company:</span>{" "}
-            <span className="text-foreground">{user?.tenantId ? (tenantQuery.data?.name ?? "…") : "All companies (SuperAdmin)"}</span>
+            <span className="text-foreground">{user?.tenantId ? (tenantQuery.data?.name ?? "…") : "All companies"}</span>
           </div>
           <div className="sm:col-span-3 flex flex-wrap items-center gap-3 pt-2 border-t border-border">
             <button

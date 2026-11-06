@@ -29,7 +29,7 @@ public sealed class ConnectorsController(
     private ConnectorOptions Options => options.Value;
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<IReadOnlyList<ConnectorDto>>> List(CancellationToken ct)
     {
         var list = await connectors.ListAsync(ct);
@@ -39,7 +39,7 @@ public sealed class ConnectorsController(
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<ConnectorDto>> Get(Guid id, CancellationToken ct) =>
         Ok(ConnectorMapper.ToDto(await FindAsync(id, ct)));
 
@@ -148,7 +148,7 @@ public sealed class ConnectorsController(
         Ok(Map(await connectors.GetCaptureAsync(captureId, ct) ?? throw ApiException.NotFound("Capture not found", "CONNECTOR_CAPTURE_NOT_FOUND")));
 
     [HttpGet("unknown-devices")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<IReadOnlyList<ConnectorUnknownDeviceDto>>> UnknownDevices(CancellationToken ct)
     {
         var byId = (await connectors.ListAsync(ct)).ToDictionary(c => c.Id);

@@ -17,7 +17,7 @@ namespace Bms.Api.Controllers;
 public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRepository auditLog, MqttTransportAdapter mqtt) : BmsControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")] // not Customer: integration detail
+    [Authorize(Roles = "SuperAdmin")] // not Customer: integration detail
     public async Task<ActionResult<PagedResult<GatewayDto>>> List(
         [FromQuery] Guid? tenantId, [FromQuery] Guid? siteId, [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
         [FromQuery] string? search = null, [FromQuery] GatewayStatus? status = null, CancellationToken ct = default)
@@ -38,7 +38,7 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
     }
 
     [HttpGet("available")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<IReadOnlyList<GatewayAvailableDto>>> Available([FromQuery] Guid? tenantId, [FromQuery] Guid? siteId, CancellationToken ct)
     {
         var result = await gateways.ListAsync(EffectiveTenantFilter(tenantId), siteId, new PageRequest { Page = 1, PageSize = 500 }, ct);
@@ -46,7 +46,7 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")] // not Customer: integration detail
+    [Authorize(Roles = "SuperAdmin")] // not Customer: integration detail
     public async Task<ActionResult<GatewayDto>> GetById(Guid id, [FromQuery] Guid? tenantId, CancellationToken ct)
     {
         var effectiveTenantId = EffectiveTenantFilter(tenantId);
@@ -55,7 +55,7 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<GatewayDto>> Create([FromQuery] Guid? tenantId, CreateGatewayRequest request, CancellationToken ct)
     {
         if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
@@ -92,7 +92,7 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<GatewayDto>> Update(Guid id, [FromQuery] Guid? tenantId, UpdateGatewayRequest request, CancellationToken ct)
     {
         if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
@@ -115,7 +115,7 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Delete(Guid id, [FromQuery] Guid? tenantId, CancellationToken ct)
     {
         if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
@@ -135,7 +135,7 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
 
     /// <summary>Send one of the gateway's documented control requests.</summary>
     [HttpPost("{id:guid}/commands")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Command(Guid id, [FromQuery] Guid? tenantId, GatewayCommandRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Op) || request.Op.Length > 64)

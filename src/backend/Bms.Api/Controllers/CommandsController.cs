@@ -21,7 +21,7 @@ public sealed class CommandsController(
     IRealtimeNotifier notifier) : BmsControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")] // not Customer: integration detail
+    [Authorize(Roles = "SuperAdmin")] // not Customer: integration detail
     public async Task<ActionResult<IReadOnlyList<DeviceCommandDto>>> List(Guid deviceId, CancellationToken ct)
     {
         var device = await devices.GetByIdAsync(deviceId, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");
@@ -31,7 +31,7 @@ public sealed class CommandsController(
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<DeviceCommandDto>> Create(Guid deviceId, CreateCommandRequest request, CancellationToken ct)
     {
         var device = await devices.GetByIdAsync(deviceId, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");

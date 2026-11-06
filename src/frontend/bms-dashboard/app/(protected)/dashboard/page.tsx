@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Bell, Building2, Cpu, MapPin, PowerOff, Wifi, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useCan } from "@/lib/auth/permissions";
+import { hasPermission, useCan } from "@/lib/auth/permissions";
 import { useTenantScope } from "@/lib/tenant/TenantScopeContext";
 import { useApi } from "@/hooks/useApi";
 import { AlertsApi, DevicesApi, SitesApi, TenantsApi } from "@/lib/api/resources";
@@ -26,7 +26,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const canHandle = useCan()("alerts.handle");
   const { effectiveTenantId } = useTenantScope();
-  const isSuperAdmin = user?.role === "SuperAdmin";
+  const isSuperAdmin = hasPermission(user?.role, "tenantScope.switch");
 
   const devicesQuery = useApi(() => DevicesApi.list({ tenantId: effectiveTenantId, pageSize: 200 }), [effectiveTenantId]);
   // Unresolved = Open + Acknowledged: an acknowledged alert is seen, not fixed.
@@ -128,7 +128,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
-        {isSuperAdmin && <Stat label="Tenants" value={tenantsQuery.data?.totalCount ?? "—"} icon={Building2} href="/tenants" />}
+        {isSuperAdmin && <Stat label="Companies" value={tenantsQuery.data?.totalCount ?? "—"} icon={Building2} href="/tenants" />}
         <Stat label="Sites" value={sitesQuery.data?.totalCount ?? "—"} icon={MapPin} href="/sites" />
         <Stat label="Devices" value={scopedDevices.length} icon={Cpu} href="/devices" />
         <Stat label="Online" value={onlineCount} tone="text-emerald-600 dark:text-emerald-400" icon={Wifi} href="/devices?status=Online" />

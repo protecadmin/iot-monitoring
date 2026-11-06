@@ -29,7 +29,7 @@ public sealed class ProductionBootstrapTests
             Assert.False(await db.Users.AnyAsync());
             const string password = "Test-Only-Strong-Password-2026!";
             await ProductionBootstrapper.EnsureAsync(db, hasher, "admin@example.com", password);
-            Assert.Equal(5, await db.Roles.CountAsync());
+            Assert.Equal(4, await db.Roles.CountAsync());
             var admin = Assert.Single(await db.Users.Include(u => u.Role).ToListAsync());
             Assert.Equal("SuperAdmin", admin.Role!.Name);
             Assert.True(hasher.Verify(password, admin.PasswordHash));

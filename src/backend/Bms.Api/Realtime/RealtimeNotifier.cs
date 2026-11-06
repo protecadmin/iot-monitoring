@@ -15,11 +15,11 @@ namespace Bms.Api.Realtime;
 /// </summary>
 public sealed class RealtimeNotifier : IRealtimeNotifier
 {
-    private readonly IHubContext<TelemetryHub> _hub;
+    private readonly RealtimeDelivery _delivery;
 
-    public RealtimeNotifier(IHubContext<TelemetryHub> hub)
+    public RealtimeNotifier(RealtimeDelivery delivery)
     {
-        _hub = hub;
+        _delivery = delivery;
     }
 
     public Task TelemetryUpdatedAsync(NormalizedTelemetry telemetry, CancellationToken ct) =>
@@ -87,10 +87,10 @@ public sealed class RealtimeNotifier : IRealtimeNotifier
         }, ct);
 
     public Task GatewayMessageReceivedAsync(GatewayMessageUpdate update, CancellationToken ct) =>
-        _hub.Clients.Group(RealtimeGroups.AllTenants).SendAsync("GatewayMessageReceived", update, ct);
+        _delivery.SendAsync(Guid.Empty, "GatewayMessageReceived", update, ct);
 
     public Task HubMessageReceivedAsync(HubMessageUpdate update, CancellationToken ct) =>
-        _hub.Clients.Group(RealtimeGroups.AllTenants).SendAsync("HubMessageReceived", update, ct);
+        _delivery.SendAsync(Guid.Empty, "HubMessageReceived", update, ct);
 
     private static object MapAlert(Alert alert) => new
     {
@@ -107,7 +107,6 @@ public sealed class RealtimeNotifier : IRealtimeNotifier
 
     private async Task BroadcastAsync(Guid tenantId, string eventName, object payload, CancellationToken ct)
     {
-        await _hub.Clients.Group(RealtimeGroups.Tenant(tenantId)).SendAsync(eventName, payload, ct);
-        await _hub.Clients.Group(RealtimeGroups.AllTenants).SendAsync(eventName, payload, ct);
+        await _delivery.SendAsync(tenantId, eventName, payload, ct);
     }
 }

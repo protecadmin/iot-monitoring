@@ -3,6 +3,8 @@ using Bms.Application.Abstractions.Persistence;
 using Bms.Domain;
 using Bms.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using Bms.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Bms.Infrastructure.Notifications;
 
@@ -13,18 +15,15 @@ namespace Bms.Infrastructure.Notifications;
 /// alert's tenant (Viewer/Customer accounts are read-only by role, so they
 /// aren't expected to act on an alert anyway).
 /// </summary>
-public sealed class AlertEmailNotifier(IUserRepository users, IEmailSender email, ILogger<AlertEmailNotifier> logger) : IAlertEmailNotifier
+public sealed class AlertEmailNotifier(BmsDbContext db, IEmailSender email, ILogger<AlertEmailNotifier> logger) : IAlertEmailNotifier
 {
-    private static readonly string[] RecipientRoles = ["SuperAdmin", "Admin", "Engineer"];
 
     public async Task NotifyAsync(Alert alert, Device device, CancellationToken ct)
     {
         if (alert.Severity != AlertSeverity.Critical)
             return;
 
-        var recipients = (await users.ListAsync(alert.TenantId, ct))
-            .Where(u => u.IsActive && u.Role is not null && RecipientRoles.Contains(u.Role.Name))
-            .ToList();
+        var recipients = await AlertRecipients.ForDevice(db, device).ToListAsync(ct);
 
         if (recipients.Count == 0)
         {

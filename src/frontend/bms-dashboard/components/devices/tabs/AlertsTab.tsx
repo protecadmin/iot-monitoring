@@ -8,6 +8,7 @@ import { LoadingState, ErrorState, EmptyState, StatusBadge } from "@/components/
 export function AlertsTab({ deviceId }: { deviceId: string }) {
   const query = useApi(() => AlertsApi.list({ deviceId, pageSize: 100 }), [deviceId]);
   const canHandle = useCan()("alerts.handle");
+  const canResolve = useCan()("alerts.resolve");
 
   if (query.loading) return <LoadingState />;
   if (query.error) return <ErrorState message={query.error} />;
@@ -53,7 +54,7 @@ export function AlertsTab({ deviceId }: { deviceId: string }) {
                       Acknowledge
                     </button>
                   )}
-                  {a.status !== "Resolved" && (
+                  {canResolve && a.status !== "Resolved" && (
                     <button onClick={() => act(a.id, "resolve")} className="text-xs text-emerald-600 hover:underline">
                       Resolve
                     </button>

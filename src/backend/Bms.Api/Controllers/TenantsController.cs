@@ -21,7 +21,7 @@ public sealed class TenantsController(
     Bms.Calculations.DerivedParameterCalculations derivedCalculations) : BmsControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin,Executive,CompanyAdmin")]
     public async Task<ActionResult<PagedResult<TenantDto>>> List(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 25, [FromQuery] string? search = null, CancellationToken ct = default)
     {
@@ -82,14 +82,17 @@ public sealed class TenantsController(
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin,CompanyAdmin")]
     public async Task<ActionResult<TenantDto>> Update(Guid id, UpdateTenantRequest request, CancellationToken ct)
     {
         RequireTenantAccess(id);
         var tenant = await tenants.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Tenant not found", "TENANT_NOT_FOUND");
         tenant.Name = request.Name;
-        tenant.IsActive = request.IsActive;
-        tenant.DigitalTwinEnabled = request.DigitalTwinEnabled;
+        if (IsSuperAdmin)
+        {
+            tenant.IsActive = request.IsActive;
+            tenant.DigitalTwinEnabled = request.DigitalTwinEnabled;
+        }
         await tenants.UpdateAsync(tenant, ct);
         await auditLog.AddAsync(new AuditLog
         {

@@ -19,7 +19,7 @@ using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options => options.Filters.Add<Bms.Api.Common.AccessPolicyFilter>())
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -54,6 +54,8 @@ builder.Services.PostConfigure<Bms.Infrastructure.Ota.FirmwareOptions>(o =>
     o.StoragePath = Path.GetFullPath(o.StoragePath, builder.Environment.ContentRootPath));
 builder.Services.AddScoped<IIngestionPipeline, IngestionPipeline>();
 builder.Services.AddScoped<IRealtimeNotifier, RealtimeNotifier>();
+builder.Services.AddSingleton<RealtimeDelivery>();
+builder.Services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, SubjectUserIdProvider>();
 
 builder.Services.AddSignalR()
     .AddJsonProtocol(options =>
@@ -229,6 +231,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("Dashboard");
 app.UseHttpsRedirection();
 app.UseAuthentication();
+app.UseMiddleware<AccessScopeMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

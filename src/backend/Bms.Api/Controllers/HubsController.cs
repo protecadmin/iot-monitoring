@@ -17,7 +17,7 @@ namespace Bms.Api.Controllers;
 public sealed class HubsController(IHubRepository hubs, IAuditLogRepository auditLog, MqttTransportAdapter mqtt) : BmsControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<PagedResult<HubDto>>> List(
         [FromQuery] Guid? tenantId, [FromQuery] Guid? siteId, [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
         [FromQuery] string? search = null, [FromQuery] HubStatus? status = null, CancellationToken ct = default)
@@ -38,7 +38,7 @@ public sealed class HubsController(IHubRepository hubs, IAuditLogRepository audi
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<HubDto>> GetById(Guid id, [FromQuery] Guid? tenantId, CancellationToken ct)
     {
         var effectiveTenantId = EffectiveTenantFilter(tenantId);
@@ -47,7 +47,7 @@ public sealed class HubsController(IHubRepository hubs, IAuditLogRepository audi
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<HubDto>> Create([FromQuery] Guid? tenantId, CreateHubRequest request, CancellationToken ct)
     {
         if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
@@ -95,7 +95,7 @@ public sealed class HubsController(IHubRepository hubs, IAuditLogRepository audi
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<HubDto>> Update(Guid id, [FromQuery] Guid? tenantId, UpdateHubRequest request, CancellationToken ct)
     {
         if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
@@ -121,7 +121,7 @@ public sealed class HubsController(IHubRepository hubs, IAuditLogRepository audi
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Delete(Guid id, [FromQuery] Guid? tenantId, CancellationToken ct)
     {
         if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
@@ -141,7 +141,7 @@ public sealed class HubsController(IHubRepository hubs, IAuditLogRepository audi
 
     /// <summary>Send a one-time command request to the PRO-TEC HUB (Section 6).</summary>
     [HttpPost("{id:guid}/commands")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Command(Guid id, [FromQuery] Guid? tenantId, HubCommandRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Action) || request.Action.Length > 64)
@@ -186,7 +186,7 @@ public sealed class HubsController(IHubRepository hubs, IAuditLogRepository audi
 
     /// <summary>Deploy desired configuration patch to the PRO-TEC HUB (Section 5).</summary>
     [HttpPost("{id:guid}/config/desired")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> SetDesiredConfig(Guid id, [FromQuery] Guid? tenantId, HubDesiredConfigRequest request, CancellationToken ct)
     {
         if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);

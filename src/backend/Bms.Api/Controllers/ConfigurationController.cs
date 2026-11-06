@@ -17,7 +17,7 @@ public sealed class ConfigurationController(
     IDeviceCommandDispatcher dispatcher) : BmsControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")] // not Customer: integration detail
+    [Authorize(Roles = "SuperAdmin")] // not Customer: integration detail
     public async Task<ActionResult<DeviceConfigurationDto>> Get(Guid deviceId, CancellationToken ct)
     {
         var device = await devices.GetByIdAsync(deviceId, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");
@@ -30,7 +30,7 @@ public sealed class ConfigurationController(
     }
 
     [HttpPut]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<DeviceConfigurationDto>> Update(Guid deviceId, UpdateDeviceConfigurationRequest request, CancellationToken ct)
     {
         var device = await devices.GetByIdAsync(deviceId, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");

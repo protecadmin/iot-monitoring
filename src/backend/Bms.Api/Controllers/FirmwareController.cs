@@ -42,7 +42,7 @@ public sealed partial class FirmwareController(
     private static partial Regex VersionPattern();
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")] // not Customer: integration detail
+    [Authorize(Roles = "SuperAdmin")] // not Customer: integration detail
     public async Task<ActionResult<IReadOnlyList<FirmwareDto>>> List(CancellationToken ct)
     {
         var all = await firmwares.ListAsync(ct);
@@ -51,7 +51,7 @@ public sealed partial class FirmwareController(
 
     /// <summary>Uploads a release: the binary is stored and its real SHA-256 and size recorded.</summary>
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     [Consumes("multipart/form-data")]
     // The configured MaxFileSizeMb is enforced while streaming (see
     // LocalFirmwareStorage); these only lift the framework's smaller defaults.
@@ -116,7 +116,7 @@ public sealed partial class FirmwareController(
 
     /// <summary>Deletes a release, its binary and its deployment history. Refused while an update is still in progress.</summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var firmware = await firmwares.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Firmware not found", "FIRMWARE_NOT_FOUND");
@@ -140,7 +140,7 @@ public sealed partial class FirmwareController(
 
     /// <summary>The binary, for an operator in the dashboard.</summary>
     [HttpGet("{id:guid}/file")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")] // not Customer: integration detail
+    [Authorize(Roles = "SuperAdmin")] // not Customer: integration detail
     public async Task<IActionResult> DownloadForUser(Guid id, CancellationToken ct)
     {
         var firmware = await firmwares.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Firmware not found", "FIRMWARE_NOT_FOUND");
@@ -180,7 +180,7 @@ public sealed partial class FirmwareController(
     /// next comes Online (TimeoutSweepWorker).
     /// </summary>
     [HttpPost("deploy")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<IReadOnlyList<FirmwareDeploymentDto>>> Deploy(DeployFirmwareRequest request, CancellationToken ct)
     {
         var firmware = await firmwares.GetByIdAsync(request.FirmwareId, ct) ?? throw ApiException.NotFound("Firmware not found", "FIRMWARE_NOT_FOUND");
@@ -230,7 +230,7 @@ public sealed partial class FirmwareController(
 
     /// <summary>Sends a Failed or Timed-out update again, with a fresh download link.</summary>
     [HttpPost("deployments/{id:guid}/retry")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<FirmwareDeploymentDto>> Retry(Guid id, CancellationToken ct)
     {
         var deployment = await deployments.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Deployment not found", "DEPLOYMENT_NOT_FOUND");
@@ -263,7 +263,7 @@ public sealed partial class FirmwareController(
     }
 
     [HttpGet("deployments")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")] // not Customer: integration detail
+    [Authorize(Roles = "SuperAdmin")] // not Customer: integration detail
     public async Task<ActionResult<IReadOnlyList<FirmwareDeploymentDto>>> ListDeployments([FromQuery] Guid firmwareId, CancellationToken ct)
     {
         var list = await deployments.ListForFirmwareAsync(firmwareId, ct);

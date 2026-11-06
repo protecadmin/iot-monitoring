@@ -3,22 +3,21 @@ using Bms.Application.Abstractions.Persistence;
 using Bms.Domain;
 using Bms.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using Bms.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Bms.Infrastructure.Notifications;
 
 /// <summary>Telegram counterpart to AlertEmailNotifier — see that class for the recipient-eligibility rules this mirrors.</summary>
-public sealed class AlertTelegramNotifier(IUserRepository users, ITelegramSender telegram, ILogger<AlertTelegramNotifier> logger) : IAlertTelegramNotifier
+public sealed class AlertTelegramNotifier(BmsDbContext db, ITelegramSender telegram, ILogger<AlertTelegramNotifier> logger) : IAlertTelegramNotifier
 {
-    private static readonly string[] RecipientRoles = ["SuperAdmin", "Admin", "Engineer"];
 
     public async Task NotifyAsync(Alert alert, Device device, CancellationToken ct)
     {
         if (alert.Severity != AlertSeverity.Critical)
             return;
 
-        var recipients = (await users.ListAsync(alert.TenantId, ct))
-            .Where(u => u.IsActive && u.Role is not null && RecipientRoles.Contains(u.Role.Name) && !string.IsNullOrWhiteSpace(u.TelegramChatId))
-            .ToList();
+        var recipients = await AlertRecipients.ForDevice(db, device).Where(u => u.TelegramChatId != null && u.TelegramChatId != "").ToListAsync(ct);
 
         if (recipients.Count == 0)
         {

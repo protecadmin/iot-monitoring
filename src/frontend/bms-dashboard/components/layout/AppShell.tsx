@@ -30,19 +30,15 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { hasPermission, type Permission } from "@/lib/auth/permissions";
+import { hasPermission, roleLabel, type Permission } from "@/lib/auth/permissions";
 import { useTenantScope } from "@/lib/tenant/TenantScopeContext";
 import { useApi } from "@/hooks/useApi";
 import { useRealtime } from "@/lib/websocket/useRealtime";
 import { TenantsApi, AlertsApi } from "@/lib/api/resources";
 
-// Four groups: Monitoring (daily operational pages), Calculations (derived
-// parameters calculated automatically from raw telemetry), Infrastructure (the
-// core Tenant -> Site -> Device hierarchy plus the MQTT credentials that
-// let those devices connect — the chain you build out per customer),
-// Administration (supporting configuration: device type
-// definitions, logins, audit trail — see docs/mqtt/topic-design.md for the
-// hierarchy this mirrors).
+// Groups follow the operational workflow: monitoring, rules, onboarding,
+// connectivity, and administration. They only provide visual structure;
+// routes, permissions, and tenant-specific visibility remain unchanged.
 // `permission` hides the item for roles that lack it (see lib/auth/permissions.ts,
 // which mirrors the API's [Authorize(Roles = …)]); opening its URL directly
 // shows a "no access" message instead of a page full of 403s.
@@ -51,11 +47,17 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: t
     label: "Monitoring",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      // Watched like the dashboard — status, latest reading, alerts — by every role.
-      { href: "/devices", label: "Devices", icon: Cpu },
       { href: "/digital-twin", label: "Digital Twin", icon: Box },
       { href: "/alerts", label: "Alerts", icon: Bell },
       { href: "/reports", label: "Reports", icon: FileText },
+    ],
+  },
+  {
+    label: "Onboarding",
+    items: [
+      { href: "/tenants", label: "Tenants", icon: Building2, permission: "tenants.read" },
+      { href: "/sites", label: "Sites", icon: MapPin },
+      { href: "/devices", label: "Devices", icon: Cpu },
     ],
   },
   {
@@ -66,26 +68,29 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: t
     ],
   },
   {
-    label: "Infrastructure",
+    label: "Connectivity",
     items: [
-      { href: "/tenants", label: "Tenants", icon: Building2, permission: "tenants.manage" },
-      { href: "/sites", label: "Sites", icon: MapPin },
       { href: "/gateways", label: "Gateways", icon: Radio, permission: "technical.view" },
       { href: "/hubs", label: "Hubs", icon: Server, permission: "technical.view" },
-      { href: "/connectors", label: "Connectors", icon: Plug, permission: "connectors.manage" },
     ],
   },
   {
     label: "Administration",
     items: [
+      { href: "/connectors", label: "Connectors", icon: Plug, permission: "connectors.manage" },
       { href: "/device-types", label: "Device Types", icon: Boxes, permission: "technical.view" },
+      { href: "/firmware", label: "Firmware", icon: Cpu, permission: "technical.view" },
       { href: "/users", label: "Users", icon: Users, permission: "users.manage" },
       { href: "/audit-log", label: "Audit Log", icon: ScrollText, permission: "auditLog.view" },
     ],
   },
 ];
 
-const ALL_ITEMS = NAV_GROUPS.flatMap((g) => g.items).concat([{ href: "/settings", label: "Settings", icon: SettingsIcon }]);
+const ALL_ITEMS = NAV_GROUPS.flatMap((g) => g.items).concat([
+  { href: "/settings", label: "Settings", icon: SettingsIcon, permission: "settings.view" },
+  { href: "/mqtt-credentials", label: "MQTT Credentials", icon: Radio, permission: "mqttCredentials.manage" },
+  { href: "/commands", label: "Commands", icon: Radio, permission: "commands.send" },
+]);
 
 function isActive(pathname: string | null, href: string) {
   return pathname === href || !!pathname?.startsWith(href + "/");
@@ -170,8 +175,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const closeMobile = () => setMobileOpen(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const pageTitle = useMemo(() => pageTitleFor(pathname), [pathname]);
+  const navigation = hasPermission(user?.role, "technical.view") ? NAV_GROUPS : [{
+    label: "Monitoring",
+    items: ["/dashboard", "/tenants", "/sites", "/devices", "/alerts", "/reports", "/users"].flatMap(href => {
+      const item = ALL_ITEMS.find(item => item.href === href);
+      return item ? [item] : [];
+    }),
+  }];
   const blocked = useMemo(() => {
     const item = ALL_ITEMS.find((i) => isActive(pathname, i.href));
+    if (!hasPermission(user?.role, "monitoring.read")) return { label: "this application" };
     return item?.permission && !hasPermission(user?.role, item.permission) ? item : null;
   }, [pathname, user?.role]);
 
@@ -207,7 +220,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <TenantSwitcher collapsed={collapsed} />
 
         <nav aria-label="Main navigation" className="flex-1 py-1 overflow-hidden">
-          {NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => (item.href !== "/digital-twin" || digitalTwinEnabled) && (!item.permission || hasPermission(user?.role, item.permission))) }))
+          {navigation.map((group) => ({ ...group, items: group.items.filter((item) => (item.href !== "/digital-twin" || digitalTwinEnabled) && (!item.permission || hasPermission(user?.role, item.permission))).map((item) => ({ ...item, label: user?.role === "Executive" && item.href === "/tenants" ? "Companies" : user?.role === "Executive" && item.href === "/devices" ? "Monitoring" : item.label })) }))
             .filter((group) => group.items.length > 0)
             .map((group) => (
             <div key={group.label} className="mb-2">
@@ -237,7 +250,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               })}
             </div>
           ))}
-          <div className="border-t border-sidebar-border pt-2">
+          {hasPermission(user?.role, "settings.view") && <div className="border-t border-sidebar-border pt-2">
             <Link
               href="/settings"
               aria-current={isActive(pathname, "/settings") ? "page" : undefined}
@@ -253,7 +266,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <SettingsIcon className="h-4 w-4 shrink-0" />
               {!collapsed && "Settings"}
             </Link>
-          </div>
+          </div>}
         </nav>
 
         <button
@@ -300,7 +313,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="hidden sm:block text-left leading-tight">
                   <div className="text-xs font-medium text-foreground">{user?.displayName}</div>
-                  <div className="text-[11px] text-muted-foreground">{user?.role}</div>
+                  <div className="text-[11px] text-muted-foreground">{roleLabel(user?.role)}</div>
                 </div>
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
               </button>
@@ -310,7 +323,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <div className="absolute right-0 mt-1 w-48 bg-popover border border-border rounded-md shadow-lg py-1 z-20">
                     <div className="px-3 py-2 border-b border-border">
                       <div className="text-xs font-medium text-foreground truncate">{user?.email}</div>
-                      <div className="text-[11px] text-muted-foreground">{user?.role}</div>
+                      <div className="text-[11px] text-muted-foreground">{roleLabel(user?.role)}</div>
                     </div>
                     <button
                       onClick={logout}

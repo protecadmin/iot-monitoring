@@ -1874,6 +1874,21 @@ namespace Bms.Infrastructure.Persistence.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Bms.Domain.Entities.UserSiteAccess", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SiteId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId", "SiteId");
+
+                    b.HasIndex("SiteId");
+
+                    b.ToTable("UserSiteAccess");
+                });
+
             modelBuilder.Entity("Bms.Domain.Connectors.Connector", b =>
                 {
                     b.OwnsMany("Bms.Domain.Connectors.ConnectorMapping", "Mappings", b1 =>
@@ -2269,6 +2284,21 @@ namespace Bms.Infrastructure.Persistence.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Bms.Domain.Entities.UserSiteAccess", b =>
+                {
+                    b.HasOne("Bms.Domain.Entities.Site", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Bms.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Bms.Domain.Entities.Device", b =>

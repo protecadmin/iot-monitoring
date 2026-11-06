@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { hasPermission } from "@/lib/auth/permissions";
 
 const STORAGE_KEY = "bms.tenantScope";
 
@@ -24,7 +25,7 @@ const TenantScopeContext = createContext<TenantScopeValue | undefined>(undefined
 
 export function TenantScopeProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const canSwitchTenant = user?.role === "SuperAdmin";
+  const canSwitchTenant = hasPermission(user?.role, "tenantScope.switch");
   const [selectedTenantId, setSelected] = useState<string | null>(null);
 
   useEffect(() => {

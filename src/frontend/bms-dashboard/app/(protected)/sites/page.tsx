@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { MapPin, Plus, Search, Pencil, Map as MapIcon } from "lucide-react";
 import { useTenantScope } from "@/lib/tenant/TenantScopeContext";
 import { useCan } from "@/lib/auth/permissions";
@@ -128,6 +129,7 @@ export default function SitesPage() {
   // the API then lists sites across every tenant instead of requiring one.
   const sitesQuery = useApi(() => SitesApi.list(effectiveTenantId), [effectiveTenantId]);
   const canEdit = useCan()("sites.edit");
+  const canCreate = useCan()("sites.create");
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<SiteDto | null>(null);
@@ -147,7 +149,7 @@ export default function SitesPage() {
           <h1 className="text-2xl font-bold text-foreground">Sites</h1>
           <p className="text-sm text-muted-foreground">Physical locations, mapped by site coordinates.</p>
         </div>
-        {canEdit && (
+        {canCreate && (
           <button
             onClick={() => setCreating(true)}
             className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
@@ -160,13 +162,13 @@ export default function SitesPage() {
       {sitesQuery.error ? <div className={`${card} p-6 text-center`} role="alert"><p className="font-semibold">Unable to load sites.</p><button onClick={sitesQuery.refetch} className="mt-3 rounded-md border border-border px-4 py-2 text-sm">Retry</button></div> : <>
       <section className={card} aria-label="Site map" aria-busy={sitesQuery.loading}>
         <header className="flex flex-wrap gap-2 items-center justify-between border-b border-border px-5 py-4"><h2 className="flex items-center gap-2 font-semibold"><MapIcon size={18} />Site map</h2>{!sitesQuery.loading && <p className="text-xs text-muted-foreground">{sites.length} sites · {points.length} mapped{search && " (filtered)"}</p>}</header>
-        {sitesQuery.loading ? <div role="status" className="h-[280px] sm:h-[320px] lg:h-[400px] bg-muted/40 animate-pulse flex items-center justify-center text-sm text-muted-foreground">Loading site locations…</div> : points.length ? <SiteMap sites={points} onEdit={canEdit ? setEditing : undefined} /> : <div className="py-12 sm:py-16 text-center px-4"><MapPin className="mx-auto mb-3 text-primary" size={30} /><h3 className="font-semibold">No site locations</h3><p className="mt-1 text-sm text-muted-foreground">Add latitude and longitude to a site to display it on the map.</p>{canEdit && <button onClick={() => setCreating(true)} className="mt-4 inline-flex gap-2 items-center border border-border rounded-lg px-3 py-2 text-sm"><Plus size={16} />Add site</button>}</div>}
+        {sitesQuery.loading ? <div role="status" className="h-[280px] sm:h-[320px] lg:h-[400px] bg-muted/40 animate-pulse flex items-center justify-center text-sm text-muted-foreground">Loading site locations…</div> : points.length ? <SiteMap sites={points} onEdit={canEdit ? setEditing : undefined} /> : <div className="py-12 sm:py-16 text-center px-4"><MapPin className="mx-auto mb-3 text-primary" size={30} /><h3 className="font-semibold">No site locations</h3><p className="mt-1 text-sm text-muted-foreground">Add latitude and longitude to a site to display it on the map.</p>{canCreate && <button onClick={() => setCreating(true)} className="mt-4 inline-flex gap-2 items-center border border-border rounded-lg px-3 py-2 text-sm"><Plus size={16} />Add site</button>}</div>}
       </section>
 
       <section className={card} aria-label="Sites table" aria-busy={sitesQuery.loading}>
       <header className="flex flex-wrap gap-3 items-center justify-between px-5 py-4 border-b border-border"><h2 className="font-semibold">Sites</h2><label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"><Search size={16} className="text-muted-foreground" /><span className="sr-only">Search sites</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search sites" className="bg-transparent outline-none text-sm w-44 max-w-full" /></label></header>
       {sitesQuery.loading ? <div role="status" className="p-5 space-y-3"><span className="sr-only">Loading sites</span>{[0, 1, 2].map(row => <div key={row} className="h-10 rounded bg-muted/50 animate-pulse" />)}</div> : filtered.length === 0 ? (
-        <div className="pb-5 text-center"><EmptyState message={search ? "No sites match your current filters." : "No sites found"} hint={search ? undefined : "Create your first site to start mapping devices and gateways."} icon={MapPin} />{search ? <button className="border border-border rounded-lg px-3 py-2 text-sm" onClick={() => setSearch("")}>Clear filters</button> : canEdit && <button className="border border-border rounded-lg px-3 py-2 text-sm" onClick={() => setCreating(true)}>+ New site</button>}</div>
+        <div className="pb-5 text-center"><EmptyState message={search ? "No sites match your current filters." : "No sites found"} hint={search ? undefined : "Create your first site to start mapping devices and gateways."} icon={MapPin} />{search ? <button className="border border-border rounded-lg px-3 py-2 text-sm" onClick={() => setSearch("")}>Clear filters</button> : canCreate && <button className="border border-border rounded-lg px-3 py-2 text-sm" onClick={() => setCreating(true)}>+ New site</button>}</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[580px] text-sm">
@@ -175,7 +177,7 @@ export default function SitesPage() {
                 <th className="text-left px-4 py-2">Name</th>
                 <th className="text-left px-4 py-2">Code</th>
                 <th className="text-left px-4 py-2">Address</th>
-                {canEdit && <th className="text-left px-4 py-2">Actions</th>}
+                <th className="text-left px-4 py-2">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -184,13 +186,14 @@ export default function SitesPage() {
                   <td className="px-4 py-3 font-semibold">{s.name}</td>
                   <td className="px-4 py-2 text-muted-foreground">{s.code}</td>
                   <td className="px-4 py-2 text-muted-foreground">{s.address ?? "—"}</td>
-                  {canEdit && (
                     <td className="px-4 py-2">
+                      <Link href={`/devices?siteId=${s.id}`} className="mr-3 text-xs text-primary hover:underline">View monitoring</Link>
+                      {canEdit && (
                       <button onClick={() => setEditing(s)} aria-label={`Edit ${s.name}`} className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
                         <Pencil size={13} />Edit
                       </button>
+                      )}
                     </td>
-                  )}
                 </tr>
               ))}
             </tbody>

@@ -42,9 +42,9 @@ public static class DbSeeder
 
         logger.LogInformation("Seeding development data...");
 
-        var roles = new[] { "SuperAdmin", "Admin", "Engineer", "Viewer", "Customer" }
-            .Select(name => new Role { Name = name }).ToList();
-        db.Roles.AddRange(roles);
+        var roles = await db.Roles.ToListAsync();
+        foreach (var name in new[] { "SuperAdmin", "Executive", "CompanyAdmin", "SiteAdmin" })
+            if (roles.All(r => r.Name != name)) { var role = new Role { Name = name }; roles.Add(role); db.Roles.Add(role); }
         await db.SaveChangesAsync();
         Role RoleByName(string name) => roles.First(r => r.Name == name);
 
@@ -167,9 +167,9 @@ public static class DbSeeder
         const string devPassword = "Passw0rd!";
         db.Users.AddRange(
             new User { TenantId = null, RoleId = RoleByName("SuperAdmin").Id, Email = "superadmin@bms.local", DisplayName = "Super Admin", PasswordHash = hasher.Hash(devPassword) },
-            new User { TenantId = whirlpool.Id, RoleId = RoleByName("Admin").Id, Email = "admin@whirlpool.example", DisplayName = "Whirlpool Admin", PasswordHash = hasher.Hash(devPassword) },
-            new User { TenantId = abc.Id, RoleId = RoleByName("Admin").Id, Email = "admin@abc-manufacturing.example", DisplayName = "ABC Admin", PasswordHash = hasher.Hash(devPassword) },
-            new User { TenantId = demo.Id, RoleId = RoleByName("Viewer").Id, Email = "viewer@demo-company.example", DisplayName = "Demo Viewer", PasswordHash = hasher.Hash(devPassword) });
+            new User { TenantId = whirlpool.Id, RoleId = RoleByName("CompanyAdmin").Id, Email = "admin@whirlpool.example", DisplayName = "Whirlpool Company Admin", PasswordHash = hasher.Hash(devPassword) },
+            new User { TenantId = abc.Id, RoleId = RoleByName("CompanyAdmin").Id, Email = "admin@abc-manufacturing.example", DisplayName = "ABC Company Admin", PasswordHash = hasher.Hash(devPassword) },
+            new User { TenantId = null, RoleId = RoleByName("Executive").Id, Email = "executive@bms.local", DisplayName = "Pro-Tec Executive", PasswordHash = hasher.Hash(devPassword) });
         await db.SaveChangesAsync();
 
         await EnsureDemoAdditionsAsync(db, logger);

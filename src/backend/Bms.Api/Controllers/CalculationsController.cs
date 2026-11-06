@@ -64,7 +64,7 @@ public sealed partial class CalculationsController(
     }
 
     [HttpPost("rules")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<CalculationRuleDto>> CreateRule([FromQuery] Guid tenantId, CreateCalculationRuleRequest request, CancellationToken ct)
     {
         RequireTenantAccess(tenantId);
@@ -93,7 +93,7 @@ public sealed partial class CalculationsController(
     }
 
     [HttpPut("rules/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<CalculationRuleDto>> UpdateRule(Guid id, [FromQuery] Guid tenantId, UpdateCalculationRuleRequest request, CancellationToken ct)
     {
         RequireTenantAccess(tenantId);
@@ -141,7 +141,7 @@ public sealed partial class CalculationsController(
     }
 
     [HttpDelete("rules/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> DeleteRule(Guid id, [FromQuery] Guid tenantId, CancellationToken ct)
     {
         RequireTenantAccess(tenantId);
@@ -257,7 +257,7 @@ public sealed partial class CalculationsController(
 
     /// <summary>Sets exactly which Selected-mode rules a device uses. Called by the device form on create and edit.</summary>
     [HttpPut("/api/devices/{deviceId:guid}/calculations")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<DeviceCalculationsDto>> SetDeviceCalculations(
         Guid deviceId, [FromQuery] Guid tenantId, SetDeviceCalculationsRequest request, CancellationToken ct)
     {

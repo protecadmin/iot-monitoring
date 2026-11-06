@@ -42,7 +42,7 @@ public sealed class SitesController(ISiteRepository sites) : BmsControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<SiteDto>> Create([FromQuery] Guid tenantId, CreateSiteRequest request, CancellationToken ct)
     {
         RequireTenantAccess(tenantId);
@@ -60,7 +60,7 @@ public sealed class SitesController(ISiteRepository sites) : BmsControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin,CompanyAdmin")]
     public async Task<ActionResult<SiteDto>> Update(Guid id, [FromQuery] Guid tenantId, UpdateSiteRequest request, CancellationToken ct)
     {
         RequireTenantAccess(tenantId);

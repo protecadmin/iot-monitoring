@@ -1,60 +1,50 @@
 import { useAuth } from "./AuthContext";
 
-/**
- * What each role may do in the dashboard. Every entry mirrors an
- * [Authorize(Roles = …)] on the API — the server is what actually enforces
- * it; this only keeps the UI from offering actions that would come back 403.
- * Change both sides together.
- */
-export type Role = "SuperAdmin" | "Admin" | "Engineer" | "Viewer" | "Customer";
-
+export type Role = "SuperAdmin" | "Executive" | "CompanyAdmin" | "SiteAdmin";
 const SUPER: Role[] = ["SuperAdmin"];
-const ADMIN: Role[] = ["SuperAdmin", "Admin"];
-const ENGINEER: Role[] = ["SuperAdmin", "Admin", "Engineer"];
-/** Everyone except Customer — Customer only sees monitoring (dashboard, alerts, reports, results, sites, devices' data). */
-const STAFF: Role[] = ["SuperAdmin", "Admin", "Engineer", "Viewer"];
+const COMPANY: Role[] = ["SuperAdmin", "CompanyAdmin"];
+const BUSINESS: Role[] = ["SuperAdmin", "Executive", "CompanyAdmin", "SiteAdmin"];
 
 export const PERMISSIONS = {
-  // Platform-wide — SuperAdmin only
+  "monitoring.read": BUSINESS,
+  "tenants.read": ["SuperAdmin", "Executive"],
   "tenants.manage": SUPER,
+  "tenantScope.switch": ["SuperAdmin", "Executive"],
+  "settings.view": COMPANY,
   "deviceTypes.manage": SUPER,
   "mqttCredentials.manage": SUPER,
   "notifications.manage": SUPER,
-
-  // Tenant administration
-  "users.manage": ADMIN,
-  "auditLog.view": ADMIN,
-  "firmware.manage": ADMIN,
-  "devices.delete": ADMIN,
-  "alertRules.delete": ADMIN,
-  // Alert rules defined once for every company — platform-wide.
+  "users.manage": COMPANY,
+  "auditLog.view": SUPER,
+  "firmware.manage": SUPER,
+  "devices.delete": SUPER,
+  "alertRules.delete": SUPER,
   "globalAlertRules.manage": SUPER,
-  // Connectors: set up by a SuperAdmin; picked from when adding a device.
   "connectors.manage": SUPER,
-  "connectors.view": ENGINEER,
-  "calculations.delete": ADMIN,
-
-  // Day-to-day engineering
-  "devices.edit": ENGINEER,
-  "sites.edit": ENGINEER,
-  "alerts.handle": ENGINEER,
-  "alertRules.edit": ENGINEER,
-  "calculations.edit": ENGINEER,
-  "commands.send": ENGINEER,
-  "configuration.edit": ENGINEER,
-  "rawMessages.replay": ENGINEER,
-
-  // Technical views hidden from Customer
-  "technical.view": STAFF,
+  "connectors.view": SUPER,
+  "calculations.delete": SUPER,
+  "devices.edit": SUPER,
+  "sites.create": SUPER,
+  "sites.edit": COMPANY,
+  "alerts.handle": ["SuperAdmin", "CompanyAdmin", "SiteAdmin"],
+  "alerts.resolve": SUPER,
+  "alertRules.edit": SUPER,
+  "calculations.edit": SUPER,
+  "commands.send": SUPER,
+  "configuration.edit": SUPER,
+  "rawMessages.replay": SUPER,
+  "technical.view": SUPER,
 } satisfies Record<string, Role[]>;
-
 export type Permission = keyof typeof PERMISSIONS;
-
 export function hasPermission(role: string | undefined | null, permission: Permission): boolean {
   return !!role && (PERMISSIONS[permission] as string[]).includes(role);
 }
-
-/** `const can = useCan(); can("devices.edit")` */
+export function roleLabel(role: string | undefined | null): string {
+  return ({ SuperAdmin: "SuperAdmin", Executive: "Executive", CompanyAdmin: "Company Admin", SiteAdmin: "Site Admin" } as Record<string, string>)[role ?? ""] ?? `${role ?? "Unknown"} (review required)`;
+}
+export function roleBadgeClass(role: string): string {
+  return ({ SuperAdmin: "bg-emerald-950 text-white", Executive: "bg-orange-100 text-orange-800", CompanyAdmin: "bg-emerald-100 text-emerald-800", SiteAdmin: "bg-teal-100 text-teal-800" } as Record<string, string>)[role] ?? "bg-muted text-muted-foreground";
+}
 export function useCan() {
   const { user } = useAuth();
   return (permission: Permission) => hasPermission(user?.role, permission);

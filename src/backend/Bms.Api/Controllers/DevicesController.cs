@@ -61,7 +61,7 @@ public sealed class DevicesController(
         var result = await devices.ListAsync(filter, ct);
         return Ok(new PagedResult<DeviceDto>
         {
-            Items = result.Items.Select(Map).ToList(),
+            Items = result.Items.Select(MapForCaller).ToList(),
             TotalCount = result.TotalCount,
             Page = result.Page,
             PageSize = result.PageSize
@@ -73,11 +73,11 @@ public sealed class DevicesController(
     {
         var device = await devices.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");
         RequireTenantAccess(device.TenantId);
-        return Ok(Map(device));
+        return Ok(MapForCaller(device));
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<DeviceDto>> Create([FromQuery] Guid tenantId, CreateDeviceRequest request, CancellationToken ct)
     {
         // A SuperAdmin names the company explicitly — without it the device
@@ -167,7 +167,7 @@ public sealed class DevicesController(
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<DeviceDto>> Update(Guid id, UpdateDeviceRequest request, CancellationToken ct)
     {
         var device = await devices.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");
@@ -201,7 +201,7 @@ public sealed class DevicesController(
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var device = await devices.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");
@@ -227,7 +227,7 @@ public sealed class DevicesController(
     /// </summary>
     /// <summary>Turns a device's alerts off (e.g. maintenance) or back on. Readings keep being stored either way.</summary>
     [HttpPut("{id:guid}/alerts")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<DeviceDto>> SetAlerts(Guid id, SetDeviceAlertsRequest request, CancellationToken ct)
     {
         var device = await devices.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");
@@ -252,7 +252,7 @@ public sealed class DevicesController(
     }
 
     [HttpPut("{id:guid}/digital-twin")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<DeviceDto>> SetDigitalTwin(Guid id, DigitalTwinSettingsDto request, CancellationToken ct)
     {
         var device = await devices.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");
@@ -286,7 +286,7 @@ public sealed class DevicesController(
     /// stored keep the value they were stored with.
     /// </summary>
     [HttpPut("{id:guid}/value-conversions")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<DeviceDto>> SetValueConversions(Guid id, SetDeviceValueConversionsRequest request, CancellationToken ct)
     {
         var device = await devices.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Device not found", "DEVICE_NOT_FOUND");
@@ -360,6 +360,12 @@ public sealed class DevicesController(
         d.ValueConversions.Select(c => new DeviceValueConversionDto(c.ParameterKey, c.Offset, c.Scale)).ToList(),
         d.MqttTelemetryTopic,
         d.Connection == DeviceConnection.MqttDirect ? d.MqttTelemetryTopic ?? MqttTelemetryTopicRules.DefaultFor(d.DeviceCode) : null);
+
+    private DeviceDto MapForCaller(Device d) => IsSuperAdmin ? Map(d) : Map(d) with
+    {
+        GatewayId = null, GatewayName = null, ConnectorId = null,
+        MqttTelemetryTopic = null, EffectiveMqttTelemetryTopic = null
+    };
 
     private async Task<string?> ValidateMqttTopicAsync(string? topic, DeviceConnection connection, Guid? id,
         Guid tenantId, Guid siteId, string deviceCode, CancellationToken ct)

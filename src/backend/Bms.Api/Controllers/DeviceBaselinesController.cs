@@ -33,7 +33,7 @@ public sealed class DeviceBaselinesController(
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<IReadOnlyList<DeviceBaselineDto>>> Set(Guid deviceId, SetDeviceBaselineRequest request, CancellationToken ct)
     {
         var device = await FindAsync(deviceId, ct);
@@ -76,7 +76,7 @@ public sealed class DeviceBaselinesController(
 
     /// <summary>Clears one parameter's baseline (?parameterKey=xDeg), or all of them.</summary>
     [HttpDelete]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Reset(Guid deviceId, [FromQuery] string? parameterKey, CancellationToken ct)
     {
         var device = await FindAsync(deviceId, ct);

@@ -16,20 +16,20 @@ namespace Bms.Api.Realtime;
 public sealed class RealtimeBridgeService : BackgroundService
 {
     private readonly MqttTransportAdapter _mqtt;
-    private readonly IHubContext<TelemetryHub> _hub;
+    private readonly RealtimeDelivery _delivery;
     private readonly IngestionHealthTracker _ingestionHealth;
     private readonly string _ingestionStatusTopic;
     private readonly ILogger<RealtimeBridgeService> _logger;
 
     public RealtimeBridgeService(
         MqttTransportAdapter mqtt,
-        IHubContext<TelemetryHub> hub,
+        RealtimeDelivery delivery,
         IngestionHealthTracker ingestionHealth,
         IOptions<IngestionHealthOptions> ingestionHealthOptions,
         ILogger<RealtimeBridgeService> logger)
     {
         _mqtt = mqtt;
-        _hub = hub;
+        _delivery = delivery;
         _ingestionHealth = ingestionHealth;
         _ingestionStatusTopic = ingestionHealthOptions.Value.StatusTopic;
         _logger = logger;
@@ -82,9 +82,8 @@ public sealed class RealtimeBridgeService : BackgroundService
                 return;
 
             var payloadElement = JsonDocument.Parse(payload).RootElement;
-            if (tenantId != Guid.Empty.ToString())
-                await _hub.Clients.Group(RealtimeGroups.Tenant(tenantId)).SendAsync(eventName, payloadElement, ct);
-            await _hub.Clients.Group(RealtimeGroups.AllTenants).SendAsync(eventName, payloadElement, ct);
+            if (Guid.TryParse(tenantId, out var tenant))
+                await _delivery.SendAsync(tenant, eventName, payloadElement, ct);
         }
         catch (Exception ex)
         {

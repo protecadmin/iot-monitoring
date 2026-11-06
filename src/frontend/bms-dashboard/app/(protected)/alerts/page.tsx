@@ -30,6 +30,7 @@ function Alerts() {
   const { effectiveTenantId } = useTenantScope();
   const can = useCan();
   const canHandle = can("alerts.handle");
+  const canResolve = can("alerts.resolve");
   const canEditRules = can("alertRules.edit");
   const canManageGlobal = can("globalAlertRules.manage");
   const [status, setStatus] = useState(() => params.get("status") ?? "Open");
@@ -168,7 +169,7 @@ function Alerts() {
                           Acknowledge
                         </button>
                       )}
-                      {a.status !== "Resolved" && (
+                      {canResolve && a.status !== "Resolved" && (
                         <button onClick={() => act(a.id, "resolve")} className="text-xs text-success hover:underline">
                           Resolve
                         </button>

@@ -22,6 +22,7 @@ export interface LoginResponse {
 }
 
 export interface ManagedUserDto {
+  allowedSiteIds?: string[];
   id: string;
   email: string;
   displayName: string;

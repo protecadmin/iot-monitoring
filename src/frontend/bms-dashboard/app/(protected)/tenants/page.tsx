@@ -8,6 +8,8 @@ import { ApiError } from "@/lib/api/client";
 import { ErrorState, EmptyState, StatusBadge, TableSkeleton } from "@/components/ui/States";
 import { Modal, FormField, inputClass } from "@/components/ui/Modal";
 import { useAuth } from "@/lib/auth/AuthContext";
+import Link from "next/link";
+import { useTenantScope } from "@/lib/tenant/TenantScopeContext";
 import type { TenantDto } from "@/types/api";
 
 function CreateTenantModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
@@ -104,11 +106,12 @@ function EditTenantModal({ tenant, onClose, onUpdated }: { tenant: TenantDto; on
 
 export default function TenantsPage() {
   const { user } = useAuth();
+  const { setSelectedTenantId } = useTenantScope();
   const query = useApi(() => TenantsApi.list(), []);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<TenantDto | null>(null);
 
-  if (user?.role !== "SuperAdmin") {
+  if (user?.role !== "SuperAdmin" && user?.role !== "Executive") {
     return <p className="text-sm text-muted-foreground">Only SuperAdmin can view all tenants. You belong to a single tenant, scoped automatically across the app.</p>;
   }
 
@@ -116,15 +119,15 @@ export default function TenantsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Tenants</h1>
+          <h1 className="text-xl font-semibold text-foreground">{user?.role === "Executive" ? "Companies" : "Tenants"}</h1>
           <p className="text-sm text-muted-foreground">Customer organizations using this platform.</p>
         </div>
-        <button
+        {user?.role === "SuperAdmin" && <button
           onClick={() => setCreating(true)}
           className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" /> New tenant
-        </button>
+        </button>}
       </div>
 
       {query.loading && (
@@ -159,9 +162,10 @@ export default function TenantsPage() {
                   </td>
                   <td className="px-4 py-2 text-muted-foreground text-xs">{new Date(t.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-2">
-                    <button onClick={() => setEditing(t)} className="text-xs text-primary hover:underline">
+                    <Link href="/sites" onClick={() => setSelectedTenantId(t.id)} className="mr-3 text-xs text-primary hover:underline">View sites</Link>
+                    {user?.role === "SuperAdmin" && <button onClick={() => setEditing(t)} className="text-xs text-primary hover:underline">
                       Edit
-                    </button>
+                    </button>}
                   </td>
                 </tr>
               ))}

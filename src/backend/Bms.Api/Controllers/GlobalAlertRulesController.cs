@@ -107,7 +107,7 @@ public sealed class GlobalAlertRulesController(
 
     /// <summary>Sets a company's change at one level — the company, a site, or a device. Null fields inherit; all null resets.</summary>
     [HttpPut("{id:guid}/override")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> SaveOverride(Guid id, [FromQuery] Guid tenantId, SaveAlertRuleOverrideRequest request, CancellationToken ct)
     {
         RequireTenantAccess(tenantId);
@@ -136,7 +136,7 @@ public sealed class GlobalAlertRulesController(
 
     /// <summary>Removes the change at one level, so it follows the level above again.</summary>
     [HttpDelete("{id:guid}/override")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> ResetOverride(Guid id, [FromQuery] Guid tenantId, [FromQuery] Guid? siteId, [FromQuery] Guid? deviceId, CancellationToken ct)
     {
         RequireTenantAccess(tenantId);

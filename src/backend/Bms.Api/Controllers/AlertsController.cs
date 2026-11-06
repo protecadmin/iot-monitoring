@@ -41,7 +41,7 @@ public sealed class AlertsController(
     }
 
     [HttpPost("{id:guid}/acknowledge")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin,CompanyAdmin,SiteAdmin")]
     public async Task<ActionResult<AlertDto>> Acknowledge(Guid id, CancellationToken ct)
     {
         var alert = await alerts.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Alert not found", "ALERT_NOT_FOUND");
@@ -55,7 +55,7 @@ public sealed class AlertsController(
     }
 
     [HttpPost("{id:guid}/resolve")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<AlertDto>> Resolve(Guid id, CancellationToken ct)
     {
         var alert = await alerts.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Alert not found", "ALERT_NOT_FOUND");
@@ -104,7 +104,7 @@ public sealed class AlertsController(
     }
 
     [HttpPost("rules")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<AlertRuleDto>> CreateRule([FromQuery] Guid tenantId, CreateAlertRuleRequest request, CancellationToken ct)
     {
         RequireTenantAccess(tenantId);
@@ -137,7 +137,7 @@ public sealed class AlertsController(
     }
 
     [HttpPut("rules/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<AlertRuleDto>> UpdateRule(Guid id, [FromQuery] Guid tenantId, UpdateAlertRuleRequest request, CancellationToken ct)
     {
         RequireTenantAccess(tenantId);
@@ -167,7 +167,7 @@ public sealed class AlertsController(
     }
 
     [HttpDelete("rules/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> DeleteRule(Guid id, [FromQuery] Guid tenantId, CancellationToken ct)
     {
         RequireTenantAccess(tenantId);

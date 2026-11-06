@@ -3,17 +3,25 @@
 import { useMemo, useState } from "react";
 import { Plus, Users as UsersIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useCan } from "@/lib/auth/permissions";
+import { useCan, roleLabel, roleBadgeClass } from "@/lib/auth/permissions";
 import { useTenantScope } from "@/lib/tenant/TenantScopeContext";
 import { useApi } from "@/hooks/useApi";
-import { UsersApi, TenantsApi } from "@/lib/api/resources";
+import { UsersApi, TenantsApi, SitesApi } from "@/lib/api/resources";
 import { ApiError } from "@/lib/api/client";
 import { ErrorState, EmptyState, StatusBadge, TableSkeleton } from "@/components/ui/States";
 import { Modal, FormField, inputClass } from "@/components/ui/Modal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import type { ManagedUserDto } from "@/types/api";
 
-const ASSIGNABLE_ROLES = ["Admin", "Engineer", "Viewer", "Customer"];
+const ASSIGNABLE_ROLES = ["Executive", "CompanyAdmin", "SiteAdmin"];
+
+function SiteAssignments({ tenantId, value, onChange }: { tenantId?: string; value: string[]; onChange: (ids: string[]) => void }) {
+  const sites = useApi(() => tenantId ? SitesApi.list(tenantId) : Promise.resolve(undefined), [tenantId]);
+  return <fieldset className="rounded-lg border border-border p-3"><legend className="px-1 text-sm font-medium">Assigned sites *</legend>
+    {!tenantId ? <p className="text-sm text-muted-foreground">Select a company first.</p> : sites.loading ? <p className="text-sm">Loading sites...</p> : sites.error ? <p role="alert" className="text-sm text-destructive">Unable to load sites. <button type="button" onClick={sites.refetch}>Retry</button></p> : <div className="max-h-48 space-y-2 overflow-y-auto">{sites.data?.items.map(site => <label key={site.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={value.includes(site.id)} onChange={e => onChange(e.target.checked ? [...value, site.id] : value.filter(id => id !== site.id))} />{site.name} <span className="text-xs text-muted-foreground">{site.code}</span></label>)}{sites.data?.items.length === 0 && <p className="text-sm text-muted-foreground">No sites in this company.</p>}</div>}
+    <p className="mt-2 text-xs text-muted-foreground">Access applies to devices, readings, alerts and reports in these sites.</p>
+  </fieldset>;
+}
 
 function CreateUserModal({
   fixedTenantId,
@@ -24,11 +32,14 @@ function CreateUserModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const { user: currentUser } = useAuth();
+  const assignableRoles = currentUser?.role === "SuperAdmin" ? ASSIGNABLE_ROLES : ["SiteAdmin"];
   const tenantsQuery = useApi(() => (fixedTenantId ? Promise.resolve(undefined) : TenantsApi.list()), [fixedTenantId]);
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("Viewer");
+  const [role, setRole] = useState("SiteAdmin");
+  const [allowedSiteIds, setAllowedSiteIds] = useState<string[]>([]);
   const [tenantId, setTenantId] = useState(fixedTenantId ?? "");
   const [telegramChatId, setTelegramChatId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -38,13 +49,14 @@ function CreateUserModal({
     e.preventDefault();
     setError(null);
     const effectiveTenantId = fixedTenantId ?? tenantId;
-    if (!effectiveTenantId) {
+    if (role !== "Executive" && !effectiveTenantId) {
       setError("Select a tenant");
       return;
     }
     setSaving(true);
     try {
-      await UsersApi.create({ email, displayName, password, role, tenantId: effectiveTenantId, telegramChatId: telegramChatId || undefined });
+      if (role === "SiteAdmin" && allowedSiteIds.length === 0) throw new Error("Assign at least one site");
+      await UsersApi.create({ email, displayName, password, role, tenantId: role === "Executive" ? undefined : effectiveTenantId, telegramChatId: telegramChatId || undefined, allowedSiteIds: role === "SiteAdmin" ? allowedSiteIds : [] });
       onCreated();
       onClose();
     } catch (err) {
@@ -58,9 +70,9 @@ function CreateUserModal({
     <Modal title="New user" onClose={onClose} size="lg">
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          {!fixedTenantId && (
+          {!fixedTenantId && role !== "Executive" && (
             <FormField label="Tenant">
-              <select required value={tenantId} onChange={(e) => setTenantId(e.target.value)} className={inputClass}>
+              <select required value={tenantId} onChange={(e) => { setTenantId(e.target.value); setAllowedSiteIds([]); }} className={inputClass}>
                 <option value="">Select...</option>
                 {tenantsQuery.data?.items.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -87,9 +99,9 @@ function CreateUserModal({
           </FormField>
           <FormField label="Role">
             <select value={role} onChange={(e) => setRole(e.target.value)} className={inputClass}>
-              {ASSIGNABLE_ROLES.map((r) => (
+              {assignableRoles.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {roleLabel(r)}
                 </option>
               ))}
             </select>
@@ -107,6 +119,7 @@ function CreateUserModal({
           Share this password with the customer directly — there is no email invite flow yet, so send it through a secure channel. Telegram Chat ID
           is obtained by messaging the platform&apos;s bot (see Settings) and comes from Telegram, not something you make up.
         </p>
+        {role === "SiteAdmin" && <SiteAssignments tenantId={fixedTenantId ?? tenantId} value={allowedSiteIds} onChange={setAllowedSiteIds} />}
         {error && <p className="text-xs text-destructive">{error}</p>}
         <button disabled={saving} className="w-full text-sm px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
           {saving ? "Creating..." : "Create user"}
@@ -127,6 +140,9 @@ function EditUserModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { user: currentUser } = useAuth();
+  const assignableRoles = currentUser?.role === "SuperAdmin" ? ASSIGNABLE_ROLES.filter(role => user.tenantId ? role !== "Executive" : role === "Executive") : ["SiteAdmin"];
+  const [allowedSiteIds, setAllowedSiteIds] = useState<string[]>(user.allowedSiteIds ?? []);
   const [displayName, setDisplayName] = useState(user.displayName);
   const [telegramChatId, setTelegramChatId] = useState(user.telegramChatId ?? "");
   const [role, setRole] = useState(user.role);
@@ -147,6 +163,7 @@ function EditUserModal({
         telegramChatId: telegramChatId || undefined,
         role: canChangeRole && role !== user.role ? role : undefined,
         password: password || undefined,
+        allowedSiteIds: role === "SiteAdmin" ? allowedSiteIds : [],
       });
       onSaved();
       onClose();
@@ -166,9 +183,9 @@ function EditUserModal({
           </FormField>
           <FormField label="Role">
             <select value={role} disabled={!canChangeRole} onChange={(e) => setRole(e.target.value)} className={`${inputClass} disabled:opacity-60`}>
-              {(ASSIGNABLE_ROLES.includes(user.role) ? ASSIGNABLE_ROLES : [user.role, ...ASSIGNABLE_ROLES]).map((r) => (
+              {(assignableRoles.includes(user.role) ? assignableRoles : [user.role, ...assignableRoles]).map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {roleLabel(r)}
                 </option>
               ))}
             </select>
@@ -194,6 +211,7 @@ function EditUserModal({
           Email and tenant can&apos;t be changed. Setting a new password or changing the role signs the user out of existing sessions — share the
           new password with them through a secure channel.
         </p>
+        {role === "SiteAdmin" && <SiteAssignments tenantId={user.tenantId ?? undefined} value={allowedSiteIds} onChange={setAllowedSiteIds} />}
         {error && <p className="text-xs text-destructive">{error}</p>}
         <button disabled={saving} className="w-full text-sm px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
           {saving ? "Saving..." : "Save changes"}
@@ -222,7 +240,7 @@ export default function UsersPage() {
 
   if (!canManage) {
     return (
-      <p className="text-sm text-muted-foreground">Only SuperAdmin and Admin accounts can manage users.</p>
+      <p className="text-sm text-muted-foreground">Only SuperAdmin and Company Admin accounts can manage users.</p>
     );
   }
 
@@ -272,7 +290,7 @@ export default function UsersPage() {
                 <tr key={u.id}>
                   <td className="px-4 py-2 font-medium text-foreground">{u.email}</td>
                   <td className="px-4 py-2 text-muted-foreground">{u.displayName}</td>
-                  <td className="px-4 py-2 text-muted-foreground">{u.role}</td>
+                  <td className="px-4 py-2"><span className={`rounded-full px-2 py-1 text-xs font-medium ${roleBadgeClass(u.role)}`}>{roleLabel(u.role)}</span>{u.role === "SiteAdmin" && <span className="ml-2 text-xs text-muted-foreground">{u.allowedSiteIds?.length ?? 0} sites</span>}</td>
                   {user?.role === "SuperAdmin" && (
                     <td className="px-4 py-2 text-muted-foreground">{u.tenantId ? tenantById.get(u.tenantId) ?? u.tenantId.slice(0, 8) : "—"}</td>
                   )}
@@ -280,7 +298,7 @@ export default function UsersPage() {
                     <StatusBadge status={u.isActive ? "Active" : "Inactive"} />
                   </td>
                   <td className="px-4 py-2">
-                    <div className="flex gap-3">
+                    {(user?.role === "SuperAdmin" || u.role === "SiteAdmin") && <div className="flex gap-3">
                       <button onClick={() => setEditing(u)} className="text-xs text-primary hover:underline">
                         Edit
                       </button>
@@ -289,7 +307,7 @@ export default function UsersPage() {
                           {u.isActive ? "Deactivate" : "Activate"}
                         </button>
                       )}
-                    </div>
+                    </div>}
                   </td>
                 </tr>
               ))}

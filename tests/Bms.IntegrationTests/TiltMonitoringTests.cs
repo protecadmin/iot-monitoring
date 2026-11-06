@@ -79,12 +79,16 @@ public sealed class TiltMonitoringTests
         Assert.Equal(day29,unchanged.Rows.Single(r=>r.Date==day29.Date));
         (await http.PutAsJsonAsync(endpoint,new{closingTime="23:58",timeZoneId="UTC"})).EnsureSuccessStatusCode();
         Assert.Equal(summary.Baseline,(await http.GetFromJsonAsync<TiltSummary>(endpoint))!.Baseline);
-        var viewer=factory.CreateClient();
-        var viewerLogin=await viewer.PostAsJsonAsync("/api/auth/login",new{email="viewer@demo-company.example",password="Passw0rd!"});
-        var viewerAuth=(await viewerLogin.Content.ReadFromJsonAsync<Bms.Api.Dtos.LoginResponse>())!;
-        viewer.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",viewerAuth.AccessToken);
-        Assert.Equal(HttpStatusCode.Forbidden,(await viewer.GetAsync(endpoint)).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden,(await viewer.PutAsJsonAsync(endpoint,new{closingTime="23:59",timeZoneId="UTC"})).StatusCode);
+        // A user from another tenant must not read or update this device's tilt settings.
+        // Use the current supported CompanyAdmin seed account; legacy Viewer accounts are
+        // intentionally blocked during login and are not suitable for a scope assertion.
+        var otherTenant=factory.CreateClient();
+        var otherTenantLogin=await otherTenant.PostAsJsonAsync("/api/auth/login",new{email="admin@whirlpool.example",password="Passw0rd!"});
+        otherTenantLogin.EnsureSuccessStatusCode();
+        var otherTenantAuth=(await otherTenantLogin.Content.ReadFromJsonAsync<Bms.Api.Dtos.LoginResponse>())!;
+        otherTenant.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Bearer",otherTenantAuth.AccessToken);
+        Assert.Equal(HttpStatusCode.Forbidden,(await otherTenant.GetAsync(endpoint)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,(await otherTenant.PutAsJsonAsync(endpoint,new{closingTime="23:59",timeZoneId="UTC"})).StatusCode);
 
         // An outage must not freeze an empty day or a fabricated baseline.
         var outageDevice=await Post<Bms.Api.Dtos.DeviceDto>($"/api/devices?tenantId={tenant.Id}",new{siteId=site.Id,deviceTypeId=type.Id,deviceCode="tilt-outage-"+suffix,name="Tilt outage test"});

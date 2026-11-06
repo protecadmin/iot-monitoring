@@ -69,9 +69,9 @@ export const TenantsApi = {
 export const UsersApi = {
   // tenantId omitted lists across every tenant — only meaningful for a SuperAdmin caller.
   list: (tenantId?: string) => api.get<ManagedUserDto[]>(`/api/users${toQuery({ tenantId })}`),
-  create: (body: { email: string; displayName: string; password: string; role: string; tenantId?: string; telegramChatId?: string }) =>
+  create: (body: { email: string; displayName: string; password: string; role: string; tenantId?: string; telegramChatId?: string; allowedSiteIds?: string[] }) =>
     api.post<ManagedUserDto>("/api/users", body),
-  update: (id: string, body: { displayName: string; telegramChatId?: string; role?: string; password?: string }) =>
+  update: (id: string, body: { displayName: string; telegramChatId?: string; role?: string; password?: string; allowedSiteIds?: string[] }) =>
     api.put<ManagedUserDto>(`/api/users/${id}`, body),
   deactivate: (id: string) => api.post<void>(`/api/users/${id}/deactivate`),
   activate: (id: string) => api.post<void>(`/api/users/${id}/activate`),

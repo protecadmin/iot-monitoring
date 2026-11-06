@@ -146,6 +146,7 @@ function Devices() {
   const [search, setSearch] = useState("");
   // ?status=Offline preselects the filter — the dashboard's tiles link here.
   const initialStatus = useSearchParams().get("status");
+  const siteId = useSearchParams().get("siteId") || undefined;
   const [status, setStatus] = useState(() => initialStatus ?? "");
   const [deviceTypeId, setDeviceTypeId] = useState("");
   const [page, setPage] = useState(1);
@@ -155,13 +156,14 @@ function Devices() {
     () =>
       DevicesApi.list({
         tenantId: effectiveTenantId,
+        siteId,
         search: search || undefined,
         status: status || undefined,
         deviceTypeId: deviceTypeId || undefined,
         page,
         pageSize,
       }),
-    [effectiveTenantId, search, status, deviceTypeId, page],
+    [effectiveTenantId, search, status, deviceTypeId, page, siteId],
   );
 
   // Device names are free text ("AHU-001 Supply Temp"), so the type is what

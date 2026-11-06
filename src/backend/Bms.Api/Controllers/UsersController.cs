@@ -5,6 +5,8 @@ using Bms.Application.Abstractions.Security;
 using Bms.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Bms.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Bms.Api.Controllers;
 
@@ -17,17 +19,53 @@ namespace Bms.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/users")]
-[Authorize(Roles = "SuperAdmin,Admin")]
-public sealed class UsersController(IUserRepository users, IPasswordHasher hasher, IAuditLogRepository auditLog, IRefreshTokenRepository refreshTokens) : BmsControllerBase
+[Authorize(Roles = "SuperAdmin,CompanyAdmin")]
+public sealed class UsersController(IUserRepository users, IPasswordHasher hasher, IAuditLogRepository auditLog, IRefreshTokenRepository refreshTokens, BmsDbContext db) : BmsControllerBase
 {
-    private static readonly string[] AssignableRoles = ["Admin", "Engineer", "Viewer", "Customer"];
+    private static readonly string[] AssignableRoles = ["Executive", "CompanyAdmin", "SiteAdmin"];
+
+    private void RequireAssignable(string role)
+    {
+        if (!AssignableRoles.Contains(role) || (!IsSuperAdmin && role != "SiteAdmin"))
+            throw ApiException.Forbidden("You cannot assign this role", "ROLE_FORBIDDEN");
+    }
+
+    private void RequireManagedUser(User user)
+    {
+        if (IsSuperAdmin) return;
+        if (user.TenantId != CurrentTenantId || user.Role?.Name != "SiteAdmin")
+            throw ApiException.Forbidden("Company administrators may manage only their company's Site Admin accounts", "USER_FORBIDDEN");
+    }
+
+    private async Task<Guid[]> ValidateSites(string role, Guid? tenantId, IReadOnlyList<Guid>? ids, CancellationToken ct)
+    {
+        var selected = ids?.Distinct().ToArray() ?? [];
+        if (role != "SiteAdmin")
+        {
+            if (selected.Length > 0) throw ApiException.BadRequest("Only Site Admin accounts have site assignments", "INVALID_SITES");
+            return [];
+        }
+        if (selected.Length == 0) throw ApiException.BadRequest("Assign at least one site", "SITES_REQUIRED");
+        if (await db.Sites.CountAsync(s => selected.Contains(s.Id) && s.TenantId == tenantId, ct) != selected.Length)
+            throw ApiException.Forbidden("All assigned sites must belong to the account's company", "SITE_FORBIDDEN");
+        return selected;
+    }
+
+    private async Task ReplaceSites(Guid userId, Guid[] ids, CancellationToken ct)
+    {
+        var old = await db.UserSiteAccess.Where(a => a.UserId == userId).ToListAsync(ct);
+        db.UserSiteAccess.RemoveRange(old.Where(a => !ids.Contains(a.SiteId)));
+        db.UserSiteAccess.AddRange(ids.Where(id => old.All(a => a.SiteId != id)).Select(id => new UserSiteAccess { UserId = userId, SiteId = id }));
+        await db.SaveChangesAsync(ct);
+    }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ManagedUserDto>>> List([FromQuery] Guid? tenantId, CancellationToken ct)
     {
         var effectiveTenantId = EffectiveTenantFilter(tenantId);
         var list = await users.ListAsync(effectiveTenantId, ct);
-        return Ok(list.Select(Map).ToList());
+        var assignments = await db.UserSiteAccess.Where(a => list.Select(u => u.Id).Contains(a.UserId)).ToListAsync(ct);
+        return Ok(list.Select(u => Map(u) with { AllowedSiteIds = assignments.Where(a => a.UserId == u.Id).Select(a => a.SiteId).ToArray() }).ToList());
     }
 
     [HttpPost]
@@ -42,23 +80,29 @@ public sealed class UsersController(IUserRepository users, IPasswordHasher hashe
 
         // SuperAdmin is not an assignable role from this endpoint — granting
         // platform-wide access is deliberately not a checkbox in a form.
-        if (request.Role == "SuperAdmin" || !AssignableRoles.Contains(request.Role))
-            throw ApiException.BadRequest($"Role must be one of: {string.Join(", ", AssignableRoles)}", "INVALID_ROLE");
+        RequireAssignable(request.Role);
 
         var role = await users.GetRoleByNameAsync(request.Role, ct) ?? throw ApiException.BadRequest("Unknown role", "INVALID_ROLE");
 
         // An Admin can only provision users inside their own tenant,
         // regardless of what tenantId was requested — a SuperAdmin may
         // target any tenant.
-        Guid tenantId;
+        Guid? tenantId;
         if (IsSuperAdmin)
         {
-            tenantId = request.TenantId ?? throw ApiException.BadRequest("tenantId is required", "TENANT_REQUIRED");
+            tenantId = request.Role == "Executive" ? null : request.TenantId ?? throw ApiException.BadRequest("tenantId is required", "TENANT_REQUIRED");
         }
+
         else
         {
             tenantId = CurrentTenantId ?? throw ApiException.Forbidden("No tenant associated with this account", "NO_TENANT");
+            if (request.TenantId is { } requested && requested != tenantId)
+                throw ApiException.Forbidden("You cannot create accounts in another company", "TENANT_FORBIDDEN");
         }
+
+        if (tenantId is { } targetTenant && !await db.Tenants.AnyAsync(t => t.Id == targetTenant, ct))
+            throw ApiException.BadRequest("Company not found", "TENANT_NOT_FOUND");
+        var assignedSites = await ValidateSites(request.Role, tenantId, request.AllowedSiteIds, ct);
 
         var user = new User
         {
@@ -70,7 +114,9 @@ public sealed class UsersController(IUserRepository users, IPasswordHasher hashe
             IsActive = true,
             TelegramChatId = string.IsNullOrWhiteSpace(request.TelegramChatId) ? null : request.TelegramChatId.Trim()
         };
-        var created = await users.AddAsync(user, ct);
+        db.Users.Add(user);
+        var created = user;
+        await ReplaceSites(created.Id, assignedSites, ct);
         created.Role = role;
         await auditLog.AddAsync(new AuditLog
         {
@@ -79,15 +125,16 @@ public sealed class UsersController(IUserRepository users, IPasswordHasher hashe
             Action = "User.Create",
             EntityType = nameof(User),
             EntityId = created.Id.ToString(),
-            DetailsJson = System.Text.Json.JsonSerializer.Serialize(new { created.Email, Role = request.Role })
+            DetailsJson = System.Text.Json.JsonSerializer.Serialize(new { created.Email, Role = request.Role, AllowedSiteIds = assignedSites })
         }, ct);
-        return Ok(Map(created));
+        return Ok(Map(created) with { AllowedSiteIds = assignedSites });
     }
 
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<ManagedUserDto>> Update(Guid id, UpdateUserRequest request, CancellationToken ct)
     {
         var user = await users.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("User not found", "USER_NOT_FOUND");
+        RequireManagedUser(user);
 
         if (user.TenantId is { } tenantId)
             RequireTenantAccess(tenantId);
@@ -95,14 +142,20 @@ public sealed class UsersController(IUserRepository users, IPasswordHasher hashe
             throw ApiException.Forbidden("Only SuperAdmin can manage platform-wide accounts", "FORBIDDEN");
 
         string? newRoleName = null;
+        var targetRole = string.IsNullOrWhiteSpace(request.Role) ? user.Role?.Name ?? "" : request.Role;
+        var oldAssignments = await db.UserSiteAccess.Where(a => a.UserId == id).Select(a => a.SiteId).ToArrayAsync(ct);
+        var assignedSites = await ValidateSites(targetRole, user.TenantId, request.AllowedSiteIds ?? (targetRole == "SiteAdmin" ? oldAssignments : []), ct);
+        if (targetRole == "Executive" && user.TenantId is not null)
+            throw ApiException.BadRequest("Executive is an internal account. Create a separate account without a company", "EXECUTIVE_COMPANY");
         if (!string.IsNullOrWhiteSpace(request.Role) && request.Role != user.Role?.Name)
         {
             if (user.Id == CurrentUserId)
                 throw ApiException.BadRequest("You cannot change your own role", "CANNOT_CHANGE_OWN_ROLE");
             if (user.Role?.Name == "SuperAdmin")
                 throw ApiException.BadRequest("A SuperAdmin's role can't be changed here", "INVALID_ROLE");
-            if (!AssignableRoles.Contains(request.Role))
-                throw ApiException.BadRequest($"Role must be one of: {string.Join(", ", AssignableRoles)}", "INVALID_ROLE");
+            RequireAssignable(request.Role);
+            if (request.Role is "CompanyAdmin" or "SiteAdmin" && user.TenantId is null)
+                throw ApiException.BadRequest("Customer roles require a company", "TENANT_REQUIRED");
 
             var role = await users.GetRoleByNameAsync(request.Role, ct) ?? throw ApiException.BadRequest("Unknown role", "INVALID_ROLE");
             user.RoleId = role.Id;
@@ -120,10 +173,11 @@ public sealed class UsersController(IUserRepository users, IPasswordHasher hashe
 
         user.DisplayName = request.DisplayName;
         user.TelegramChatId = string.IsNullOrWhiteSpace(request.TelegramChatId) ? null : request.TelegramChatId.Trim();
-        await users.UpdateAsync(user, ct);
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+        await ReplaceSites(user.Id, assignedSites, ct);
 
         // A reset password (or a changed role) should not leave old sessions alive.
-        if (passwordChanged || newRoleName is not null)
+        if (passwordChanged || newRoleName is not null || !oldAssignments.Order().SequenceEqual(assignedSites.Order()))
             await refreshTokens.RevokeAllActiveForUserAsync(user.Id, ct);
 
         await auditLog.AddAsync(new AuditLog
@@ -133,9 +187,9 @@ public sealed class UsersController(IUserRepository users, IPasswordHasher hashe
             Action = "User.Update",
             EntityType = nameof(User),
             EntityId = user.Id.ToString(),
-            DetailsJson = System.Text.Json.JsonSerializer.Serialize(new { user.Email, Role = newRoleName, PasswordReset = passwordChanged })
+            DetailsJson = System.Text.Json.JsonSerializer.Serialize(new { user.Email, Role = newRoleName, PasswordReset = passwordChanged, PreviousSiteIds = oldAssignments, AllowedSiteIds = assignedSites })
         }, ct);
-        return Ok(Map(user));
+        return Ok(Map(user) with { AllowedSiteIds = assignedSites });
     }
 
     [HttpPost("{id:guid}/deactivate")]
@@ -147,6 +201,7 @@ public sealed class UsersController(IUserRepository users, IPasswordHasher hashe
     private async Task<IActionResult> SetActive(Guid id, bool active, CancellationToken ct)
     {
         var user = await users.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("User not found", "USER_NOT_FOUND");
+        RequireManagedUser(user);
 
         if (user.TenantId is { } tenantId)
             RequireTenantAccess(tenantId);
@@ -158,6 +213,7 @@ public sealed class UsersController(IUserRepository users, IPasswordHasher hashe
 
         user.IsActive = active;
         await users.UpdateAsync(user, ct);
+        if (!active) await refreshTokens.RevokeAllActiveForUserAsync(user.Id, ct);
         await auditLog.AddAsync(new AuditLog
         {
             TenantId = user.TenantId,
@@ -170,5 +226,5 @@ public sealed class UsersController(IUserRepository users, IPasswordHasher hashe
         return NoContent();
     }
 
-    private static ManagedUserDto Map(User u) => new(u.Id, u.Email, u.DisplayName, u.Role?.Name ?? "Viewer", u.TenantId, u.IsActive, u.CreatedAt, u.TelegramChatId);
+    private static ManagedUserDto Map(User u) => new(u.Id, u.Email, u.DisplayName, u.Role?.Name ?? "Unknown", u.TenantId, u.IsActive, u.CreatedAt, u.TelegramChatId);
 }

@@ -14,7 +14,7 @@ namespace Bms.Api.Controllers;
 public sealed class RawMessagesController(IRawMessageRepository rawMessages, IDeviceRepository devices, IIngestionPipeline pipeline) : BmsControllerBase
 {
     [HttpGet("api/devices/{deviceId:guid}/raw-messages")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer,Viewer")] // not Customer: integration detail
+    [Authorize(Roles = "SuperAdmin")] // not Customer: integration detail
     public async Task<ActionResult<PagedResult<RawMessageDto>>> ListForDevice(
         Guid deviceId, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
     {
@@ -39,7 +39,7 @@ public sealed class RawMessagesController(IRawMessageRepository rawMessages, IDe
     /// Restricted to Engineer+ since it can (re-)write telemetry.
     /// </summary>
     [HttpPost("api/raw-messages/{id:guid}/replay")]
-    [Authorize(Roles = "SuperAdmin,Admin,Engineer")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<RawMessageDto>> Replay(Guid id, CancellationToken ct)
     {
         var original = await rawMessages.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Raw message not found", "RAW_MESSAGE_NOT_FOUND");

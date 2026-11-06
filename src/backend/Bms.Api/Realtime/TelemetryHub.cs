@@ -15,17 +15,9 @@ public sealed class TelemetryHub : Hub
 {
     public async Task JoinTenant()
     {
-        var isSuperAdmin = Context.User?.IsInRole("SuperAdmin") ?? false;
-        var tenantId = Context.User?.FindFirst("tenantId")?.Value;
-
-        if (isSuperAdmin)
-        {
-            await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeGroups.AllTenants);
-        }
-        else if (tenantId is not null)
-        {
-            await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeGroups.Tenant(tenantId));
-        }
+        // SignalR's authenticated user channel is automatic. Delivery checks current
+        // database roles, tenant and site assignments for each individual event.
+        await Task.CompletedTask;
     }
 }
 

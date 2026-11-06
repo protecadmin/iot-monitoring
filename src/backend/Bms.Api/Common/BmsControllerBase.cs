@@ -13,6 +13,7 @@ namespace Bms.Api.Common;
 public abstract class BmsControllerBase : ControllerBase
 {
     protected bool IsSuperAdmin => User.IsInRole("SuperAdmin");
+    protected bool HasPlatformRead => IsSuperAdmin || User.IsInRole("Executive");
 
     protected Guid? CurrentTenantId
     {
@@ -28,7 +29,7 @@ public abstract class BmsControllerBase : ControllerBase
     /// <summary>Throws 403 unless the caller is a SuperAdmin or belongs to <paramref name="tenantId"/>.</summary>
     protected void RequireTenantAccess(Guid tenantId)
     {
-        if (IsSuperAdmin)
+        if (HasPlatformRead)
             return;
 
         if (CurrentTenantId != tenantId)
@@ -38,7 +39,7 @@ public abstract class BmsControllerBase : ControllerBase
     /// <summary>For list endpoints: the tenant filter to apply (null only for a SuperAdmin browsing everything).</summary>
     protected Guid? EffectiveTenantFilter(Guid? requestedTenantId)
     {
-        if (IsSuperAdmin)
+        if (HasPlatformRead)
             return requestedTenantId;
 
         if (CurrentTenantId is not { } tenantId)
