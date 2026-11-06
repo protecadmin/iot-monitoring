@@ -60,6 +60,7 @@ function CreateTenantModal({ onClose, onCreated }: { onClose: () => void; onCrea
 function EditTenantModal({ tenant, onClose, onUpdated }: { tenant: TenantDto; onClose: () => void; onUpdated: () => void }) {
   const [name, setName] = useState(tenant.name);
   const [isActive, setIsActive] = useState(tenant.isActive);
+  const [digitalTwinEnabled, setDigitalTwinEnabled] = useState(tenant.digitalTwinEnabled);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -68,7 +69,7 @@ function EditTenantModal({ tenant, onClose, onUpdated }: { tenant: TenantDto; on
     setError(null);
     setSaving(true);
     try {
-      await TenantsApi.update(tenant.id, { name, isActive });
+      await TenantsApi.update(tenant.id, { name, isActive, digitalTwinEnabled });
       onUpdated();
       onClose();
     } catch (err) {
@@ -87,6 +88,10 @@ function EditTenantModal({ tenant, onClose, onUpdated }: { tenant: TenantDto; on
         <label className="flex items-center gap-2 text-sm text-foreground">
           <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
           Active
+        </label>
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input type="checkbox" checked={digitalTwinEnabled} onChange={(e) => setDigitalTwinEnabled(e.target.checked)} />
+          Enable Digital Twin for this tenant
         </label>
         {error && <p className="text-xs text-destructive">{error}</p>}
         <button disabled={saving} className="w-full text-sm px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">

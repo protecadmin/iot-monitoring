@@ -148,6 +148,10 @@ public sealed class GatewayRepository(BmsDbContext db) : IGatewayRepository
         gateway.Rssi = rssi ?? gateway.Rssi;
         await db.SaveChangesAsync(ct);
     }
+
+    public Task<int> MarkOfflineAsync(DateTimeOffset cutoff, CancellationToken ct) =>
+        db.Gateways.Where(g => g.Status == GatewayStatus.Online && g.LastSeenAt != null && g.LastSeenAt < cutoff)
+            .ExecuteUpdateAsync(s => s.SetProperty(g => g.Status, GatewayStatus.Offline), ct);
 }
 
 public sealed class DeviceTypeRepository(BmsDbContext db) : IDeviceTypeRepository

@@ -1,8 +1,8 @@
 namespace Bms.Api.Dtos;
 
-public sealed record TenantDto(Guid Id, string Name, string Slug, bool IsActive, DateTimeOffset CreatedAt);
+public sealed record TenantDto(Guid Id, string Name, string Slug, bool IsActive, DateTimeOffset CreatedAt, bool DigitalTwinEnabled = false);
 public sealed record CreateTenantRequest(string Name, string Slug);
-public sealed record UpdateTenantRequest(string Name, bool IsActive);
+public sealed record UpdateTenantRequest(string Name, bool IsActive, bool DigitalTwinEnabled = false);
 
 public sealed record SiteDto(Guid Id, Guid TenantId, string Code, string Name, string? Address, double? Latitude, double? Longitude);
 public sealed record CreateSiteRequest(string Code, string Name, string? Address, double? Latitude, double? Longitude);

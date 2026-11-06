@@ -17,9 +17,9 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (che
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted"}`}
+        className={`settings-toggle relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${checked ? "is-on" : "is-off"}`}
       >
-        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[18px]" : "translate-x-1"}`} />
+        <span className={`settings-toggle-thumb inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[18px]" : "translate-x-1"}`} />
       </button>
       {label}
     </label>
@@ -95,7 +95,7 @@ function NotificationsSection() {
   }
 
   return (
-    <section className="space-y-2">
+    <section className="settings-notification space-y-2">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
           <Mail className="h-4 w-4 text-muted-foreground" /> Notifications (SMTP)
@@ -237,7 +237,7 @@ function TelegramSection() {
   }
 
   return (
-    <section className="space-y-2">
+    <section className="settings-notification space-y-2">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
           <MessageCircle className="h-4 w-4 text-muted-foreground" /> Notifications (Telegram)
@@ -369,20 +369,17 @@ export default function SettingsPage() {
   const tenantQuery = useApi(() => (user?.tenantId ? TenantsApi.get(user.tenantId) : Promise.resolve(undefined)), [user?.tenantId]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <SettingsIcon className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold text-foreground">Settings</h1>
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5 ml-7">Manage your profile and platform notifications.</p>
+    <div className="settings-page space-y-4 sm:space-y-5">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border pb-3">
+        <div className="flex items-center gap-2 pr-4 border-r border-border"><SettingsIcon className="h-7 w-7 text-primary" /><h1 className="text-2xl font-bold text-foreground">Settings</h1></div>
+        <p className="text-sm text-muted-foreground">Manage your profile and notification channels.</p>
       </div>
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
           <User className="h-4 w-4 text-muted-foreground" /> Profile
         </h2>
-        <div className="bg-card border border-border rounded-lg p-4 shadow-sm grid sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+        <div className="settings-card bg-card border border-border rounded-lg p-4 shadow-sm grid sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
           <div>
             <span className="text-muted-foreground">Email:</span> <span className="text-foreground">{user?.email}</span>
           </div>
@@ -412,8 +409,7 @@ export default function SettingsPage() {
 
       {changingPassword && <ChangePasswordModal onClose={() => setChangingPassword(false)} onChanged={() => setPasswordChanged(true)} />}
 
-      {user?.role === "SuperAdmin" && <NotificationsSection />}
-      {user?.role === "SuperAdmin" && <TelegramSection />}
+      {user?.role === "SuperAdmin" && <div className="grid gap-4 lg:grid-cols-2"><NotificationsSection /><TelegramSection /></div>}
 
       <p className="text-xs text-muted-foreground">Per-user notification preferences (e.g. opting out of emails) are a documented follow-up beyond this project&apos;s scope.</p>
     </div>

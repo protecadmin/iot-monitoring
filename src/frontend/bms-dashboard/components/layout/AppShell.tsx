@@ -16,7 +16,6 @@ import {
   ChevronDown,
   Cpu,
   FileText,
-  HardDriveDownload,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -24,7 +23,6 @@ import {
   Plug,
   Radio,
   ScrollText,
-  Send,
   Server,
   Settings as SettingsIcon,
   ShieldOff,
@@ -57,8 +55,6 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: t
       { href: "/devices", label: "Devices", icon: Cpu },
       { href: "/digital-twin", label: "Digital Twin", icon: Box },
       { href: "/alerts", label: "Alerts", icon: Bell },
-      { href: "/commands", label: "Commands", icon: Send, permission: "technical.view" },
-      { href: "/firmware", label: "Firmware", icon: HardDriveDownload, permission: "technical.view" },
       { href: "/reports", label: "Reports", icon: FileText },
     ],
   },
@@ -74,8 +70,8 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: t
     items: [
       { href: "/tenants", label: "Tenants", icon: Building2, permission: "tenants.manage" },
       { href: "/sites", label: "Sites", icon: MapPin },
-      { href: "/gateways", label: "Gateways", icon: Radio },
-      { href: "/hubs", label: "Hubs", icon: Server },
+      { href: "/gateways", label: "Gateways", icon: Radio, permission: "technical.view" },
+      { href: "/hubs", label: "Hubs", icon: Server, permission: "technical.view" },
       { href: "/connectors", label: "Connectors", icon: Plug, permission: "connectors.manage" },
     ],
   },
@@ -163,6 +159,9 @@ function NotificationBell() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { effectiveTenantId } = useTenantScope();
+  const tenantFeatureQuery = useApi(() => effectiveTenantId ? TenantsApi.get(effectiveTenantId) : Promise.resolve(undefined), [effectiveTenantId]);
+  const digitalTwinEnabled = tenantFeatureQuery.data?.digitalTwinEnabled === true;
   const [collapsedSetting, setCollapsed] = useState(false);
   // Phones: the sidebar is a drawer, opened from the header's menu button.
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -183,7 +182,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="protec-shell flex h-dvh overflow-hidden bg-background text-foreground">
       {mobileOpen && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={closeMobile} aria-hidden="true" />}
       <aside
-        className={`protec-sidebar fixed inset-y-0 left-0 z-40 w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] md:duration-150 ${
+        className={`protec-sidebar fixed inset-y-0 left-0 z-[60] w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] md:duration-150 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "md:w-18" : "md:w-60"}`}
       >
@@ -207,13 +206,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <TenantSwitcher collapsed={collapsed} />
 
-        <nav aria-label="Main navigation" className="flex-1 py-2 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => !item.permission || hasPermission(user?.role, item.permission)) }))
+        <nav aria-label="Main navigation" className="flex-1 py-1 overflow-hidden">
+          {NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => (item.href !== "/digital-twin" || digitalTwinEnabled) && (!item.permission || hasPermission(user?.role, item.permission))) }))
             .filter((group) => group.items.length > 0)
             .map((group) => (
-            <div key={group.label} className="mb-3">
+            <div key={group.label} className="mb-2">
               {/* A heading over a single item (a customer's Infrastructure is just Sites) is clutter. */}
-              {!collapsed && group.items.length > 1 && <div className="px-4 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{group.label}</div>}
+              {!collapsed && group.items.length > 1 && <div className="px-4 pt-2 pb-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{group.label}</div>}
               {group.items.map((item) => {
                 const active = isActive(pathname, item.href);
                 const Icon = item.icon;
@@ -225,7 +224,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     onClick={closeMobile}
                     title={collapsed ? item.label : undefined}
                     aria-label={collapsed ? item.label : undefined}
-                    className={`protec-nav-item flex items-center gap-3 px-3 py-2 text-sm mx-2 rounded-lg ${collapsed ? "justify-center px-0" : ""} ${
+                    className={`protec-nav-item flex items-center gap-2 px-3 py-1.5 text-[13px] mx-2 rounded-lg ${collapsed ? "justify-center px-0" : ""} ${
                       active
                         ? "bg-primary/10 text-primary font-medium border-r-2 border-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"

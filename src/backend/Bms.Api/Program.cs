@@ -86,6 +86,7 @@ builder.Services.AddHostedService<Bms.Api.Realtime.RealtimeBridgeService>();
 // process's uptime.
 builder.Services.AddHostedService<Bms.Api.Workers.TiltDailyWorker>();
 builder.Services.AddHostedService<OfflineSweepWorker>();
+builder.Services.AddHostedService<Bms.Api.Workers.GatewayOfflineSweepWorker>();
 builder.Services.AddHostedService<TimeoutSweepWorker>();
 
 var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? ["http://localhost:3000"];

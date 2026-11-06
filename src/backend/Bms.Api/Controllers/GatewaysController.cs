@@ -67,6 +67,7 @@ public sealed class GatewaysController(IGatewayRepository gateways, IAuditLogRep
             SiteId = request.SiteId,
             GatewayCode = request.GatewayCode.Trim(),
             Name = string.IsNullOrWhiteSpace(request.Name) ? request.GatewayCode! : request.Name.Trim(),
+            Status = GatewayStatus.Standalone,
             IpAddress = request.IpAddress,
             FirmwareVersion = request.FirmwareVersion,
             Rssi = request.Rssi,

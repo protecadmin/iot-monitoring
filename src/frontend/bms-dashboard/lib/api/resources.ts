@@ -63,7 +63,7 @@ export const TenantsApi = {
   list: (page = 1, pageSize = 50) => api.get<PagedResult<TenantDto>>(`/api/tenants?page=${page}&pageSize=${pageSize}`),
   get: (id: string) => api.get<TenantDto>(`/api/tenants/${id}`),
   create: (body: { name: string; slug: string }) => api.post<TenantDto>("/api/tenants", body),
-  update: (id: string, body: { name: string; isActive: boolean }) => api.put<TenantDto>(`/api/tenants/${id}`, body),
+  update: (id: string, body: { name: string; isActive: boolean; digitalTwinEnabled: boolean }) => api.put<TenantDto>(`/api/tenants/${id}`, body),
 };
 
 export const UsersApi = {

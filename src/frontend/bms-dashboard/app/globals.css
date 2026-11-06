@@ -248,6 +248,29 @@ body {
   background-position: center bottom;
   box-shadow: 3px 0 16px rgb(6 61 43 / 8%);
 }
+.settings-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--surface-shadow);
+}
+.settings-card .text-muted-foreground { color: var(--text-secondary); }
+.settings-notification > .bg-card { border-radius: 14px; box-shadow: var(--surface-shadow); }
+.settings-notification h2 { font-size: 1.15rem; color: var(--primary); }
+.settings-toggle {
+  width: 42px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  padding: 0 !important;
+  border: 1px solid #9ab8a8 !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  flex: 0 0 auto;
+}
+.settings-toggle.is-on { background: #d35408 !important; border-color: #d35408 !important; }
+.settings-toggle.is-off { background: #d8e2dc !important; }
+.settings-toggle-thumb { width: 16px !important; height: 16px !important; margin: 0 3px; }
 :root.protec-theme .equipment-cards > a {
   background-image: none;
   box-shadow: var(--surface-shadow);
@@ -257,8 +280,8 @@ body {
   background: rgb(6 61 43 / 22%);
 }
 .protec-sidebar .protec-nav-item {
-  min-height: 36px;
-  margin-bottom: 3px;
+  min-height: 32px;
+  margin-bottom: 2px;
   border-right: 0;
   color: #e4eee7;
   transition: background-color 150ms ease, color 150ms ease;
@@ -275,7 +298,8 @@ body {
 }
 .protec-header {
   background-color: var(--header);
-  overflow: hidden;
+  overflow: visible;
+  z-index: 50;
   isolation: isolate;
   border-bottom: 1px solid var(--border);
   border-radius: 0 0 14px 14px;
@@ -507,7 +531,7 @@ body {
   scroll-padding: 1.5rem;
 }
 @media (max-width: 639px) {
-  .protec-header-art { background-size: cover; background-position: 38% center; }
+  .protec-header-art { background-size: auto 500%; background-position: center 50%; opacity: .9; }
   .protec-page h1 { font-size: 1.5rem; }
   .protec-page > :where(div, main) > :first-child:has(h1) { flex-wrap: wrap; }
 }

@@ -38,6 +38,7 @@ export interface TenantDto {
   slug: string;
   isActive: boolean;
   createdAt: string;
+  digitalTwinEnabled: boolean;
 }
 
 export interface SiteDto {

@@ -89,6 +89,7 @@ public sealed class TenantsController(
         var tenant = await tenants.GetByIdAsync(id, ct) ?? throw ApiException.NotFound("Tenant not found", "TENANT_NOT_FOUND");
         tenant.Name = request.Name;
         tenant.IsActive = request.IsActive;
+        tenant.DigitalTwinEnabled = request.DigitalTwinEnabled;
         await tenants.UpdateAsync(tenant, ct);
         await auditLog.AddAsync(new AuditLog
         {
@@ -97,10 +98,10 @@ public sealed class TenantsController(
             Action = "Tenant.Update",
             EntityType = nameof(Tenant),
             EntityId = tenant.Id.ToString(),
-            DetailsJson = System.Text.Json.JsonSerializer.Serialize(new { tenant.Name, tenant.IsActive })
+            DetailsJson = System.Text.Json.JsonSerializer.Serialize(new { tenant.Name, tenant.IsActive, tenant.DigitalTwinEnabled })
         }, ct);
         return Ok(Map(tenant));
     }
 
-    private static TenantDto Map(Tenant t) => new(t.Id, t.Name, t.Slug, t.IsActive, t.CreatedAt);
+    private static TenantDto Map(Tenant t) => new(t.Id, t.Name, t.Slug, t.IsActive, t.CreatedAt, t.DigitalTwinEnabled);
 }

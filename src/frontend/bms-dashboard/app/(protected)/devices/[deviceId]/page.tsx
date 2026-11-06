@@ -2,7 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Activity, Bell, Box, FileCode, Info, Send, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Activity, Bell, Box, FileCode, Info, type LucideIcon } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { DeviceTypesApi, DevicesApi } from "@/lib/api/resources";
 import { useCan, type Permission } from "@/lib/auth/permissions";
@@ -10,11 +10,10 @@ import { LoadingState, ErrorState, StatusBadge } from "@/components/ui/States";
 import { OverviewTab } from "@/components/devices/tabs/OverviewTab";
 import { LiveTab } from "@/components/devices/tabs/LiveTab";
 import { AlertsTab } from "@/components/devices/tabs/AlertsTab";
-import { CommandsTab } from "@/components/devices/tabs/CommandsTab";
-import { ConfigurationTab } from "@/components/devices/tabs/ConfigurationTab";
 import { RawMessagesTab } from "@/components/devices/tabs/RawMessagesTab";
 import { DigitalTwinView } from "@/components/digital-twin/DigitalTwinView";
 import { resolveTwin } from "@/components/digital-twin/registry";
+import { TenantsApi } from "@/lib/api/resources";
 import type { DeviceDto } from "@/types/api";
 
 // Live now carries current-value tiles + chart + raw readings table (all
@@ -25,8 +24,6 @@ const TABS: { label: string; icon: LucideIcon; permission?: Permission }[] = [
   { label: "Digital Twin", icon: Box },
   { label: "Live", icon: Activity },
   { label: "Alerts", icon: Bell },
-  { label: "Commands", icon: Send, permission: "technical.view" },
-  { label: "Configuration", icon: SlidersHorizontal, permission: "technical.view" },
   { label: "Raw Messages", icon: FileCode, permission: "technical.view" },
 ];
 type Tab = (typeof TABS)[number]["label"];
@@ -39,6 +36,7 @@ export default function DeviceDetailsPage({ params }: { params: Promise<{ device
 
   const query = useApi(() => DevicesApi.get(deviceId), [deviceId]);
   const typesQuery = useApi(() => DeviceTypesApi.list(), []);
+  const tenantQuery = useApi(() => query.data?.tenantId ? TenantsApi.get(query.data.tenantId) : Promise.resolve(undefined), [query.data?.tenantId]);
   // The device as returned by a save on this page (e.g. new twin settings).
   const [savedDevice, setSavedDevice] = useState<DeviceDto | null>(null);
 
@@ -47,12 +45,8 @@ export default function DeviceDetailsPage({ params }: { params: Promise<{ device
   if (!query.data) return null;
   const device = savedDevice?.id === query.data.id ? savedDevice : query.data;
   const deviceType = typesQuery.data?.find((t) => t.id === device.deviceTypeId);
-  const deviceTypeName = deviceType?.name;
-  // Only sensor types with twin templates (components/digital-twin/designs) get the tab.
-  const twin = resolveTwin(device, deviceTypeName);
-  const visibleTabs = tabs.filter(
-    (t) => (t.label !== "Digital Twin" || twin) && (t.label !== "Commands" || deviceType?.supportsCommands !== false),
-  );
+  const twin = tenantQuery.data?.digitalTwinEnabled ? resolveTwin(device, deviceType?.name) : null;
+  const visibleTabs = tabs.filter((t) => t.label !== "Digital Twin" || twin);
   const interval = deviceType?.expectedIntervalSeconds;
 
   return (
@@ -89,11 +83,9 @@ export default function DeviceDetailsPage({ params }: { params: Promise<{ device
 
       <div>
         {tab === "Overview" && <OverviewTab key={device.id} device={device} parameters={deviceType?.parameters ?? []} tiltAxes={deviceType?.tiltAxes} />}
-        {tab === "Digital Twin" && twin && <DigitalTwinView device={device} twin={twin} deviceTypeName={deviceTypeName} onDeviceChange={setSavedDevice} />}
+        {tab === "Digital Twin" && twin && <DigitalTwinView device={device} twin={twin} deviceTypeName={deviceType?.name} onDeviceChange={setSavedDevice} />}
         {tab === "Live" && <LiveTab deviceId={device.id} parameters={deviceType?.parameters ?? []} timeSource={device.timeSource} />}
         {tab === "Alerts" && <AlertsTab deviceId={device.id} />}
-        {tab === "Commands" && tabs.some((t) => t.label === "Commands") && <CommandsTab deviceId={device.id} />}
-        {tab === "Configuration" && tabs.some((t) => t.label === "Configuration") && <ConfigurationTab deviceId={device.id} />}
         {tab === "Raw Messages" && tabs.some((t) => t.label === "Raw Messages") && <RawMessagesTab deviceId={device.id} />}
       </div>
     </div>
