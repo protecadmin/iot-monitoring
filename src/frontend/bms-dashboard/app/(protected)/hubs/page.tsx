@@ -6,6 +6,7 @@ import { HubsApi, SitesApi } from "@/lib/api/resources";
 import { useApi } from "@/hooks/useApi";
 import { ApiError } from "@/lib/api/client";
 import { useCan } from "@/lib/auth/permissions";
+import { Pagination } from "@/components/ui/Pagination";
 import { Server, Activity, ShieldCheck, RefreshCw, Plus, Search, Tv } from "lucide-react";
 
 const statusBadge = (s: string) => {
@@ -30,11 +31,13 @@ export default function HubsPage() {
   const [siteId, setSiteId] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [error, setError] = useState<string | null>(null);
 
   const hubs = useApi(
-    () => HubsApi.list({ pageSize: 100, search: search || undefined, status: status || undefined }),
-    [refresh, search, status]
+    () => HubsApi.list({ page, pageSize, search: search || undefined, status: status || undefined }),
+    [refresh, search, status, page, pageSize]
   );
   const sites = useApi(() => SitesApi.list(), []);
 
@@ -118,14 +121,14 @@ export default function HubsPage() {
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search by HUB ID (e.g. 41bfdcac4333) or name..."
             className="w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
           <option value="">All Statuses</option>
@@ -240,6 +243,7 @@ export default function HubsPage() {
             </p>
           </div>
         )}
+        {!hubs.loading && !hubs.error && hubs.data && <Pagination page={page} pageSize={pageSize} totalCount={hubs.data.totalCount} itemLabel="HUBs" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />}
       </div>
 
       {/* Registration Modal */}

@@ -112,8 +112,8 @@ export function DeviceMap({
       <div style={{ height }} className="rounded-md overflow-hidden border border-border">
         <MapContainer center={[valid[0].latitude, valid[0].longitude]} zoom={11} style={{ height: "100%", width: "100%" }}>
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> — Sources: <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
           />
           <FitBounds points={valid} />
           {spread.map((p) => (

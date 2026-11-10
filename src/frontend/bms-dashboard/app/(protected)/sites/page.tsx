@@ -11,6 +11,7 @@ import { SitesApi, TenantsApi } from "@/lib/api/resources";
 import { ApiError } from "@/lib/api/client";
 import { EmptyState } from "@/components/ui/States";
 import { Modal, FormField, inputClass } from "@/components/ui/Modal";
+import { Pagination } from "@/components/ui/Pagination";
 import type { SiteDto } from "@/types/api";
 
 // Leaflet touches `window`/`document` at module load, which doesn't exist
@@ -127,18 +128,18 @@ export default function SitesPage() {
   const { effectiveTenantId } = useTenantScope();
   // tenantId is omitted for a SuperAdmin (user.tenantId is null for them) —
   // the API then lists sites across every tenant instead of requiring one.
-  const sitesQuery = useApi(() => SitesApi.list(effectiveTenantId), [effectiveTenantId]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [search, setSearch] = useState("");
+  const sitesQuery = useApi(() => SitesApi.list(effectiveTenantId, page, pageSize, search || undefined), [effectiveTenantId, page, pageSize, search]);
   const canEdit = useCan()("sites.edit");
   const canCreate = useCan()("sites.create");
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<SiteDto | null>(null);
-  const [search, setSearch] = useState("");
-
-
   // Plot only valid site coordinates; sites without locations stay in the table.
   const sites = sitesQuery.data?.items ?? [];
-  const filtered = sites.filter(s => [s.name, s.code, s.address].some(value => value?.toLowerCase().includes(search.trim().toLowerCase())));
+  const filtered = sites;
   const points = filtered.filter(s => s.latitude != null && s.longitude != null && Number.isFinite(s.latitude) && Number.isFinite(s.longitude) && Math.abs(s.latitude) <= 90 && Math.abs(s.longitude) <= 180);
   const card = "rounded-xl border border-border bg-card shadow-sm overflow-hidden";
 
@@ -166,7 +167,7 @@ export default function SitesPage() {
       </section>
 
       <section className={card} aria-label="Sites table" aria-busy={sitesQuery.loading}>
-      <header className="flex flex-wrap gap-3 items-center justify-between px-5 py-4 border-b border-border"><h2 className="font-semibold">Sites</h2><label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"><Search size={16} className="text-muted-foreground" /><span className="sr-only">Search sites</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search sites" className="bg-transparent outline-none text-sm w-44 max-w-full" /></label></header>
+      <header className="flex flex-wrap gap-3 items-center justify-between px-5 py-4 border-b border-border"><h2 className="font-semibold">Sites</h2><label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"><Search size={16} className="text-muted-foreground" /><span className="sr-only">Search sites</span><input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search sites" className="bg-transparent outline-none text-sm w-44 max-w-full" /></label></header>
       {sitesQuery.loading ? <div role="status" className="p-5 space-y-3"><span className="sr-only">Loading sites</span>{[0, 1, 2].map(row => <div key={row} className="h-10 rounded bg-muted/50 animate-pulse" />)}</div> : filtered.length === 0 ? (
         <div className="pb-5 text-center"><EmptyState message={search ? "No sites match your current filters." : "No sites found"} hint={search ? undefined : "Create your first site to start mapping devices and gateways."} icon={MapPin} />{search ? <button className="border border-border rounded-lg px-3 py-2 text-sm" onClick={() => setSearch("")}>Clear filters</button> : canCreate && <button className="border border-border rounded-lg px-3 py-2 text-sm" onClick={() => setCreating(true)}>+ New site</button>}</div>
       ) : (
@@ -198,6 +199,7 @@ export default function SitesPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} pageSize={pageSize} totalCount={sitesQuery.data?.totalCount ?? 0} itemLabel="sites" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>
       )}
       </section>

@@ -313,6 +313,24 @@ body {
   opacity: .78;
   z-index: 0;
 }
+.protec-watermark {
+  position: fixed;
+  left: var(--sidebar-width, 15rem);
+  right: 0;
+  bottom: 0;
+  height: 55vh;
+  background-image: url('/brand/protec-monitoring-watermark.png');
+  background-repeat: no-repeat;
+  background-position: right bottom;
+  background-size: contain;
+  opacity: .12;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+.protec-watermark-subtle { opacity: .075; }
+.protec-watermark-strong { opacity: .1; }
+.protec-page { position: relative; z-index: 1; }
 .protec-header .min-w-0.rounded-lg {
   background: rgb(255 248 239 / 88%);
   border: 1px solid rgb(255 255 255 / 52%);
@@ -531,6 +549,7 @@ body {
   scroll-padding: 1.5rem;
 }
 @media (max-width: 639px) {
+  .protec-watermark { left: 0; height: 35vh; background-size: cover; opacity: .07; }
   .protec-header-art { background-size: auto 500%; background-position: center 50%; opacity: .9; }
   .protec-page h1 { font-size: 1.5rem; }
   .protec-page > :where(div, main) > :first-child:has(h1) { flex-wrap: wrap; }

@@ -7,6 +7,7 @@ import { TenantsApi } from "@/lib/api/resources";
 import { ApiError } from "@/lib/api/client";
 import { ErrorState, EmptyState, StatusBadge, TableSkeleton } from "@/components/ui/States";
 import { Modal, FormField, inputClass } from "@/components/ui/Modal";
+import { Pagination } from "@/components/ui/Pagination";
 import { useAuth } from "@/lib/auth/AuthContext";
 import Link from "next/link";
 import { useTenantScope } from "@/lib/tenant/TenantScopeContext";
@@ -107,7 +108,9 @@ function EditTenantModal({ tenant, onClose, onUpdated }: { tenant: TenantDto; on
 export default function TenantsPage() {
   const { user } = useAuth();
   const { setSelectedTenantId } = useTenantScope();
-  const query = useApi(() => TenantsApi.list(), []);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const query = useApi(() => TenantsApi.list(page, pageSize), [page, pageSize]);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<TenantDto | null>(null);
 
@@ -171,6 +174,7 @@ export default function TenantsPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} pageSize={pageSize} totalCount={query.data.totalCount} itemLabel="tenants" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>
       )}
 

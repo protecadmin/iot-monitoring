@@ -10,6 +10,7 @@ import { useApi } from "@/hooks/useApi";
 import { AlertsApi, DeviceTypesApi, DevicesApi, SitesApi, TelemetryApi } from "@/lib/api/resources";
 import { useRealtime } from "@/lib/websocket/useRealtime";
 import { ErrorState, EmptyState, StatusBadge, TableSkeleton } from "@/components/ui/States";
+import { Pagination } from "@/components/ui/Pagination";
 import { DeviceFormModal } from "@/components/devices/DeviceFormModal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { formatMeasurement } from "@/lib/format";
@@ -150,7 +151,7 @@ function Devices() {
   const [status, setStatus] = useState(() => initialStatus ?? "");
   const [deviceTypeId, setDeviceTypeId] = useState("");
   const [page, setPage] = useState(1);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
 
   const query = useApi(
     () =>
@@ -228,8 +229,6 @@ function Devices() {
     for (const s of sitesQuery.data?.items ?? []) map.set(s.id, s.name);
     return map;
   }, [sitesQuery.data]);
-
-  const totalPages = query.data ? Math.max(1, Math.ceil(query.data.totalCount / pageSize)) : 1;
 
   // Without this, a device going Offline (the periodic sweep in
   // Bms.Ingestion) or coming back Online never shows up here until the
@@ -464,19 +463,7 @@ function Devices() {
             </div>
           )}
 
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border text-sm">
-            <span className="text-muted-foreground">
-              Page {page} of {totalPages} ({query.data.totalCount} devices)
-            </span>
-            <div className="flex gap-2">
-              <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="px-2 py-1 border border-input rounded disabled:opacity-40">
-                Previous
-              </button>
-              <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="px-2 py-1 border border-input rounded disabled:opacity-40">
-                Next
-              </button>
-            </div>
-          </div>
+          <Pagination page={page} pageSize={pageSize} totalCount={query.data.totalCount} itemLabel="devices" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} pageSizes={[10, 20, 50]} />
         </div>
       )}
 

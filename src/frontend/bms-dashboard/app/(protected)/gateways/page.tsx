@@ -17,6 +17,7 @@ import { GatewaysApi } from "@/lib/api/resources";
 import { useApi } from "@/hooks/useApi";
 import { ApiError } from "@/lib/api/client";
 import { useCan } from "@/lib/auth/permissions";
+import { Pagination } from "@/components/ui/Pagination";
 
 const badge = (status: string) =>
   status === "Online"
@@ -34,20 +35,23 @@ export default function GatewaysPage() {
     [code, setCode] = useState(""),
     [search, setSearch] = useState(""),
     [status, setStatus] = useState(""),
+    [page, setPage] = useState(1),
+    [pageSize, setPageSize] = useState(25),
     [error, setError] = useState<string | null>(null);
   const gateways = useApi(
     () =>
       GatewaysApi.list({
-        pageSize: 100,
+        page,
+        pageSize,
         search: search || undefined,
         status: status || undefined,
       }),
-    [refresh, search, status],
+    [refresh, search, status, page, pageSize],
   );
   const items = useMemo(() => gateways.data?.items ?? [], [gateways.data?.items]);
   const counts = useMemo(
     () => ({
-      total: items.length,
+      total: gateways.data?.totalCount ?? items.length,
       online: items.filter((g) => g.status === "Online").length,
       offline: items.filter((g) => g.status === "Offline").length,
       unassigned: items.filter((g) => g.status === "Standalone").length,
@@ -118,7 +122,7 @@ export default function GatewaysPage() {
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search by gateway code or name..."
             className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
@@ -126,7 +130,7 @@ export default function GatewaysPage() {
         <select
           aria-label="Gateway status"
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
         >
           <option value="">All Statuses</option>
@@ -245,6 +249,7 @@ export default function GatewaysPage() {
             </p>
           </div>
         )}
+        {!gateways.loading && !gateways.error && gateways.data && <Pagination page={page} pageSize={pageSize} totalCount={gateways.data.totalCount} itemLabel="gateways" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />}
       </div>
       {showForm && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm">

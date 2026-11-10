@@ -60,7 +60,7 @@ export const AuthApi = {
 };
 
 export const TenantsApi = {
-  list: (page = 1, pageSize = 50) => api.get<PagedResult<TenantDto>>(`/api/tenants?page=${page}&pageSize=${pageSize}`),
+  list: (page = 1, pageSize = 50, search?: string) => api.get<PagedResult<TenantDto>>(`/api/tenants${toQuery({ page, pageSize, search })}`),
   get: (id: string) => api.get<TenantDto>(`/api/tenants/${id}`),
   create: (body: { name: string; slug: string }) => api.post<TenantDto>("/api/tenants", body),
   update: (id: string, body: { name: string; isActive: boolean; digitalTwinEnabled: boolean }) => api.put<TenantDto>(`/api/tenants/${id}`, body),
@@ -79,7 +79,7 @@ export const UsersApi = {
 
 export const SitesApi = {
   // tenantId omitted lists across every tenant — only meaningful for a SuperAdmin caller.
-  list: (tenantId?: string) => api.get<PagedResult<SiteDto>>(`/api/sites${toQuery({ tenantId, pageSize: 100 })}`),
+  list: (tenantId?: string, page = 1, pageSize = 100, search?: string) => api.get<PagedResult<SiteDto>>(`/api/sites${toQuery({ tenantId, page, pageSize, search })}`),
   get: (id: string, tenantId: string) => api.get<SiteDto>(`/api/sites/${id}?tenantId=${tenantId}`),
   create: (tenantId: string, body: { code: string; name: string; address?: string; latitude?: number; longitude?: number }) =>
     api.post<SiteDto>(`/api/sites?tenantId=${tenantId}`, body),

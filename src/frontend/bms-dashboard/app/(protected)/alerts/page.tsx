@@ -11,6 +11,7 @@ import { AlertsApi, DevicesApi } from "@/lib/api/resources";
 import { useRealtime } from "@/lib/websocket/useRealtime";
 import { ErrorState, EmptyState, StatCard, StatusBadge, TableSkeleton } from "@/components/ui/States";
 import { StandardRulesSection } from "@/components/alerts/StandardRulesSection";
+import { Pagination } from "@/components/ui/Pagination";
 import type { AlertDto } from "@/types/api";
 
 const STATUSES = ["", "Open", "Acknowledged", "Resolved"];
@@ -35,9 +36,11 @@ function Alerts() {
   const canManageGlobal = can("globalAlertRules.manage");
   const [status, setStatus] = useState(() => params.get("status") ?? "Open");
   const [severity, setSeverity] = useState(() => params.get("severity") ?? "");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const query = useApi(
-    () => AlertsApi.list({ tenantId: effectiveTenantId, status: status || undefined, severity: severity || undefined, pageSize: 100 }),
-    [effectiveTenantId, status, severity],
+    () => AlertsApi.list({ tenantId: effectiveTenantId, status: status || undefined, severity: severity || undefined, page, pageSize }),
+    [effectiveTenantId, status, severity, page, pageSize],
   );
 
   // Alerts pushed live since the last load. Once a reload returns the same
@@ -103,14 +106,14 @@ function Alerts() {
       </div>
 
       <div className="flex gap-2">
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="text-sm border border-input bg-background text-foreground rounded-md px-2 py-1.5">
+        <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="text-sm border border-input bg-background text-foreground rounded-md px-2 py-1.5">
           {STATUSES.map((s) => (
             <option key={s} value={s}>
               {s || "All statuses"}
             </option>
           ))}
         </select>
-        <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="text-sm border border-input bg-background text-foreground rounded-md px-2 py-1.5">
+        <select value={severity} onChange={(e) => { setSeverity(e.target.value); setPage(1); }} className="text-sm border border-input bg-background text-foreground rounded-md px-2 py-1.5">
           {SEVERITIES.map((s) => (
             <option key={s} value={s}>
               {s || "All severities"}
@@ -180,6 +183,7 @@ function Alerts() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} pageSize={pageSize} totalCount={query.data?.totalCount ?? 0} itemLabel="alerts" onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>
       )}
 

@@ -35,6 +35,7 @@ import { useTenantScope } from "@/lib/tenant/TenantScopeContext";
 import { useApi } from "@/hooks/useApi";
 import { useRealtime } from "@/lib/websocket/useRealtime";
 import { TenantsApi, AlertsApi } from "@/lib/api/resources";
+import { GlobalWatermark } from "@/components/layout/GlobalWatermark";
 
 // Groups follow the operational workflow: monitoring, rules, onboarding,
 // connectivity, and administration. They only provide visual structure;
@@ -72,14 +73,14 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; icon: t
     items: [
       { href: "/gateways", label: "Gateways", icon: Radio, permission: "technical.view" },
       { href: "/hubs", label: "Hubs", icon: Server, permission: "technical.view" },
+      { href: "/connectors", label: "Connectors", icon: Plug, permission: "connectors.manage" },
+      { href: "/firmware", label: "Firmware", icon: Cpu, permission: "technical.view" },
     ],
   },
   {
     label: "Administration",
     items: [
-      { href: "/connectors", label: "Connectors", icon: Plug, permission: "connectors.manage" },
       { href: "/device-types", label: "Device Types", icon: Boxes, permission: "technical.view" },
-      { href: "/firmware", label: "Firmware", icon: Cpu, permission: "technical.view" },
       { href: "/users", label: "Users", icon: Users, permission: "users.manage" },
       { href: "/audit-log", label: "Audit Log", icon: ScrollText, permission: "auditLog.view" },
     ],
@@ -192,7 +193,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // h-screen + overflow-hidden pins the shell to exactly the viewport
     // height so it never grows with page content — only <main> below
     // scrolls internally, keeping the sidebar and header fixed in place.
-    <div className="protec-shell flex h-dvh overflow-hidden bg-background text-foreground">
+    <div className="protec-shell isolate flex h-dvh overflow-hidden bg-background text-foreground" style={{ "--sidebar-width": collapsed ? "4.5rem" : "15rem" } as React.CSSProperties}>
+      <GlobalWatermark variant={pathname?.startsWith("/devices") || pathname?.startsWith("/gateways") || pathname?.startsWith("/hubs") ? "subtle" : "default"} />
       {mobileOpen && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={closeMobile} aria-hidden="true" />}
       <aside
         className={`protec-sidebar fixed inset-y-0 left-0 z-[60] w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:transition-[width] md:duration-150 ${
