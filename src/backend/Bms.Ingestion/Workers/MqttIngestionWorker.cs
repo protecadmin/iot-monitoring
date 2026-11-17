@@ -76,6 +76,11 @@ public sealed class MqttIngestionWorker : BackgroundService
         try
         {
             await _mqtt.ConnectAsync(stoppingToken);
+            // These filters overlap: protec/gateway/+/+ covers the gateway filters
+            // above it and every default device topic added below. The adapter
+            // keeps only the broadest, so the broker sends each message once —
+            // and unsubscribes the narrower ones, which persistent sessions from
+            // earlier versions still hold.
             await _mqtt.SubscribeAsync(_options.TelemetryTopicFilter, stoppingToken);
             await _mqtt.SubscribeAsync(_options.HeartbeatTopicFilter, stoppingToken);
             await _mqtt.SubscribeAsync(_options.CommandAckTopicFilter, stoppingToken);

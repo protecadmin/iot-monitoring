@@ -33,6 +33,13 @@ public sealed class MqttTransportAdapter : ITransportAdapter
     private readonly IMqttClient _client;
     private readonly ConcurrentDictionary<string, byte> _subscribedFilters = new();
 
+    // Filters a broader subscribed filter already covers. The broker delivers a
+    // separate copy of a message for every subscription it matches, so these are
+    // never subscribed on their own — and are actively unsubscribed, because a
+    // resumed persistent session may still hold them from an earlier run.
+    private readonly ConcurrentDictionary<string, byte> _coveredFilters = new();
+    private readonly object _filtersLock = new();
+
     // Held for the whole of a connect/retry loop, so a disconnect during an
     // initial connect (or a second caller) can never start a parallel loop.
     private readonly SemaphoreSlim _connectLock = new(1, 1);
@@ -233,6 +240,8 @@ public sealed class MqttTransportAdapter : ITransportAdapter
         // (expired, or broker state lost) has none.
         foreach (var filter in _subscribedFilters.Keys)
             await SubscribeCoreAsync(filter, cancellationToken);
+        // After the broader filters are in place, so nothing is missed in between.
+        await UnsubscribeCoreAsync(_coveredFilters.Keys.ToArray(), cancellationToken);
 
         if (Connected is { } connected)
         {
@@ -247,12 +256,64 @@ public sealed class MqttTransportAdapter : ITransportAdapter
         }
     }
 
-    /// <summary>Subscribes to a topic filter and remembers it across reconnects.</summary>
+    /// <summary>
+    /// Subscribes to a topic filter and remembers it across reconnects. Overlapping
+    /// filters are collapsed to the broadest one, so each message arrives once: a
+    /// filter an existing subscription already covers is not subscribed, and
+    /// subscribing a broader filter drops the narrower ones it covers.
+    /// </summary>
     public async Task SubscribeAsync(string filter, CancellationToken ct)
     {
-        _subscribedFilters[filter] = 0;
-        if (_client.IsConnected)
-            await SubscribeCoreAsync(filter, ct);
+        bool covered;
+        string[] superseded = [];
+        lock (_filtersLock)
+        {
+            covered = _subscribedFilters.Keys.Any(existing => existing != filter && MqttTopicFilters.Covers(existing, filter));
+            if (covered)
+            {
+                _coveredFilters[filter] = 0;
+            }
+            else
+            {
+                superseded = _subscribedFilters.Keys.Where(existing => existing != filter && MqttTopicFilters.Covers(filter, existing)).ToArray();
+                foreach (var narrower in superseded)
+                {
+                    _subscribedFilters.TryRemove(narrower, out _);
+                    _coveredFilters[narrower] = 0;
+                }
+                _coveredFilters.TryRemove(filter, out _);
+                _subscribedFilters[filter] = 0;
+            }
+        }
+
+        if (!_client.IsConnected)
+            return; // the next connect applies both sets
+
+        if (covered)
+        {
+            await UnsubscribeCoreAsync([filter], ct);
+            return;
+        }
+        await SubscribeCoreAsync(filter, ct);
+        await UnsubscribeCoreAsync(superseded, ct);
+    }
+
+    private async Task UnsubscribeCoreAsync(IReadOnlyCollection<string> filters, CancellationToken ct)
+    {
+        if (filters.Count == 0)
+            return;
+
+        var builder = new MqttClientUnsubscribeOptionsBuilder();
+        foreach (var filter in filters)
+            builder.WithTopicFilter(filter);
+        var result = await _client.UnsubscribeAsync(builder.Build(), ct);
+
+        // "No subscription existed" (0x11) is the normal answer on a fresh session.
+        // A real failure only means duplicate deliveries, which ingestion's duplicate
+        // check already rejects — not worth failing the connection over.
+        foreach (var item in result.Items.Where(item => (int)item.ResultCode >= 128))
+            _logger.LogWarning("MQTT unsubscribe from overlapping filter '{Filter}' was rejected ({Code}); messages on it may arrive more than once",
+                item.TopicFilter, item.ResultCode);
     }
 
     private async Task SubscribeCoreAsync(string filter, CancellationToken ct)
