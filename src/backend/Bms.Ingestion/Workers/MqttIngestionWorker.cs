@@ -149,11 +149,6 @@ public sealed class MqttIngestionWorker : BackgroundService
             {
                 using var scope = _scopeFactory.CreateScope();
                 var gatewayCode = ExtractProtecGatewayCode(message.Address);
-                if (ExtractProtecHubId(message.Address) is { } hubCode)
-                {
-                    var hubRepository = scope.ServiceProvider.GetRequiredService<IHubRepository>();
-                    await hubRepository.TouchAsync(hubCode, DateTimeOffset.UtcNow, _stoppingToken);
-                }
                 if (gatewayCode is not null)
                 {
                     var gatewayRepository = scope.ServiceProvider.GetRequiredService<IGatewayRepository>();
@@ -273,118 +268,45 @@ public sealed class MqttIngestionWorker : BackgroundService
 
     private static async Task HandleHubMessageAsync(IServiceProvider services, string hubId, TransportMessage message, CancellationToken ct)
     {
-        var hubRepo = services.GetRequiredService<IHubRepository>();
-        var realtime = services.GetRequiredService<IRealtimeNotifier>();
-        var payloadText = PayloadPreview(message.Payload);
-
-        await realtime.HubMessageReceivedAsync(new HubMessageUpdate(hubId, message.Address, DateTimeOffset.UtcNow, payloadText), ct);
-
-        var parts = message.Address.Split('/');
-        var subtopic = string.Join('/', parts.Skip(3));
-
-        try
+        var subtopic = string.Join('/', message.Address.Split('/').Skip(3));
+        // Never treat our own command publications or legacy retained packets as device liveness.
+        if (subtopic is not ("heartbeat" or "snapshot" or "ack")) return;
+        var json = System.Text.Encoding.UTF8.GetString(message.Payload);
+        if (!TryParseJson(message.Payload, out var root) || root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("v", out var v) || !v.TryGetInt32(out var version) || version != 2
+            || !root.TryGetProperty("hub", out var identity) || identity.GetString() != hubId) return;
+        var repo = services.GetRequiredService<IHubRepository>();
+        var received = message.ReceivedAt;
+        json = Bms.Application.Common.HubProtocol.Redact(json);
+        if (subtopic == "heartbeat")
         {
-            switch (subtopic)
+            await repo.UpdateHeartbeatAsync(hubId, received, null, ct);
+            var online = !root.TryGetProperty("online", out var flag) || flag.ValueKind == JsonValueKind.True;
+            // A retained old heartbeat is historical state, not a fresh connectivity check.
+            if (message.IsRetained && (!root.TryGetProperty("time_utc", out var time) || !DateTimeOffset.TryParse(time.GetString(), out var generated) || generated < received.AddMinutes(-5))) online = false;
+            await repo.UpdateStatusAsync(hubId, online ? HubStatus.Online : HubStatus.Offline, received, ct);
+        }
+        if (subtopic == "snapshot")
+        {
+            var previous = await repo.GetByHubIdAsync(hubId, ct);
+            var previousStatus = previous?.Status ?? HubStatus.Offline;
+            await repo.UpdateSnapshotAsync(hubId, null, root.TryGetProperty("firmware", out var fw) && fw.ValueKind == JsonValueKind.String ? fw.GetString() : null,
+                null, null, null, null, json, ct);
+            if (root.TryGetProperty("config_version", out var rev) && rev.TryGetInt32(out var revision))
             {
-                case "presence":
-                    var isOffline = payloadText.Contains("offline", StringComparison.OrdinalIgnoreCase);
-                    await hubRepo.UpdateStatusAsync(hubId, isOffline ? HubStatus.Offline : HubStatus.Online, DateTimeOffset.UtcNow, ct);
-                    break;
-
-                case "heartbeat":
-                    long? uptime = null;
-                    if (TryParseJson(message.Payload, out var hbRoot))
-                    {
-                        if (hbRoot.TryGetProperty("uptime_s", out var upVal) && upVal.TryGetInt64(out var upParsed))
-                            uptime = upParsed;
-                        else if (hbRoot.TryGetProperty("uptime", out var upVal2) && upVal2.TryGetInt64(out var upParsed2))
-                            uptime = upParsed2;
-                    }
-                    await hubRepo.UpdateHeartbeatAsync(hubId, DateTimeOffset.UtcNow, uptime, ct);
-                    break;
-
-                case "status/summary":
-                case "status/snapshot":
-                case "status":
-                    if (TryParseJson(message.Payload, out var statusRoot))
-                    {
-                        string? ip = null;
-                        int? rssi = null;
-                        long? statusUptime = null;
-                        string? appVer = null;
-                        string? agentVer = null;
-                        string? secMode = null;
-
-                        if (statusRoot.TryGetProperty("security_mode", out var smVal))
-                            secMode = smVal.GetString();
-
-                        if (statusRoot.TryGetProperty("uptime_s", out var sUp) && sUp.TryGetInt64(out var sUpParsed))
-                            statusUptime = sUpParsed;
-
-                        if (statusRoot.TryGetProperty("network", out var net) && net.ValueKind == JsonValueKind.Object)
-                        {
-                            if (net.TryGetProperty("ip", out var ipVal)) ip = ipVal.GetString();
-                            if (net.TryGetProperty("rssi_dbm", out var rssiVal) && rssiVal.TryGetInt32(out var rParsed)) rssi = rParsed;
-                        }
-
-                        if (statusRoot.TryGetProperty("firmware", out var fw) && fw.ValueKind == JsonValueKind.Object)
-                        {
-                            if (fw.TryGetProperty("app_version", out var av)) appVer = av.GetString();
-                            if (fw.TryGetProperty("agent_version", out var agv)) agentVer = agv.GetString();
-                            if (fw.TryGetProperty("stm32", out var stm) && string.IsNullOrEmpty(appVer)) appVer = stm.GetString();
-                        }
-                        else if (statusRoot.TryGetProperty("agent", out var agentObj) && agentObj.ValueKind == JsonValueKind.Object)
-                        {
-                            if (agentObj.TryGetProperty("version", out var agv)) agentVer = agv.GetString();
-                            if (agentObj.TryGetProperty("transport", out var tr) && string.IsNullOrEmpty(secMode)) secMode = tr.GetString();
-                        }
-
-                        await hubRepo.UpdateSnapshotAsync(hubId, ip, appVer, agentVer, secMode, rssi, statusUptime, payloadText, ct);
-                    }
-                    break;
-
-                case "config/reported":
-                    if (TryParseJson(message.Payload, out var cfgRoot))
-                    {
-                        int revision = 0;
-                        if (cfgRoot.TryGetProperty("config_revision", out var revVal) && revVal.TryGetInt32(out var rev))
-                            revision = rev;
-                        else if (cfgRoot.TryGetProperty("revision", out var revVal2) && revVal2.TryGetInt32(out var rev2))
-                            revision = rev2;
-
-                        string? hash = null;
-                        if (cfgRoot.TryGetProperty("config_hash", out var hVal)) hash = hVal.GetString();
-
-                        string? displayMode = null;
-                        int? rotation = null;
-                        int? welcome = null;
-                        string? history = null;
-
-                        var patch = cfgRoot.TryGetProperty("patch", out var pVal) && pVal.ValueKind == JsonValueKind.Object ? pVal : cfgRoot;
-                        if (patch.TryGetProperty("display_mode", out var dm)) displayMode = dm.GetString();
-                        if (patch.TryGetProperty("rotation_seconds", out var rot) && rot.TryGetInt32(out var r)) rotation = r;
-                        if (patch.TryGetProperty("welcome_seconds", out var wel) && wel.TryGetInt32(out var w)) welcome = w;
-                        if (patch.TryGetProperty("history_range", out var hr)) history = hr.GetString();
-
-                        await hubRepo.UpdateReportedConfigAsync(hubId, revision, hash, displayMode, rotation, welcome, history, payloadText, ct);
-                    }
-                    break;
-
-                case "config/ack":
-                    if (TryParseJson(message.Payload, out var ackRoot))
-                    {
-                        if (ackRoot.TryGetProperty("reported_revision", out var rRev) && rRev.TryGetInt32(out var repRev))
-                        {
-                            await hubRepo.UpdateReportedConfigAsync(hubId, repRev, null, null, null, null, null, null, ct);
-                        }
-                    }
-                    break;
+                var tv = root.TryGetProperty("tv", out var television) && television.ValueKind == JsonValueKind.Object ? television : default;
+                string? mode = tv.ValueKind == JsonValueKind.Object && tv.TryGetProperty("mode", out var m) ? m.GetString() : null;
+                int? rotation = tv.ValueKind == JsonValueKind.Object && tv.TryGetProperty("rotation_seconds", out var r) && r.TryGetInt32(out var rn) ? rn : null;
+                int? welcome = tv.ValueKind == JsonValueKind.Object && tv.TryGetProperty("welcome_seconds", out var w) && w.TryGetInt32(out var wn) ? wn : null;
+                await repo.UpdateReportedConfigAsync(hubId, revision, null, mode, rotation, welcome, null, json, ct);
             }
+            if (message.IsRetained)
+                await repo.UpdateStatusAsync(hubId, previousStatus, received, ct);
         }
-        catch
-        {
-            // Ignore format parse error, packet was already dispatched to realtime
-        }
+        if (subtopic is "snapshot" or "ack") await repo.ProcessCommandReplyAsync(hubId, subtopic, json, received, ct);
+        await repo.CaptureMessageAsync(hubId, new Bms.Application.Common.HubCapturedMessage(message.Address, received, json, message.Payload.Length), ct);
+        // Persistence precedes delivery. Transient database failures must propagate for MQTT redelivery.
+        await services.GetRequiredService<IRealtimeNotifier>().HubMessageReceivedAsync(new HubMessageUpdate(hubId, message.Address, received, json), ct);
     }
 
     private static bool TryParseJson(byte[] payload, out JsonElement root)

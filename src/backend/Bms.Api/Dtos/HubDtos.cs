@@ -27,7 +27,8 @@ public sealed record HubDto(
     DateTimeOffset? LastConfigSyncAt,
     string? DesiredConfigJson,
     string? ReportedConfigJson,
-    string? LastStatusJson
+    string? LastStatusJson,
+    bool RemoteApplyEnabled
 );
 
 public sealed record CreateHubRequest(
@@ -51,7 +52,9 @@ public sealed record UpdateHubRequest(
 
 public sealed record HubCommandRequest(
     string Action,
-    Dictionary<string, object?>? Arguments = null
+    Dictionary<string, object?>? Arguments = null,
+    int? IfVersion = null,
+    string? RequestId = null
 );
 
 public sealed record HubDesiredConfigRequest(

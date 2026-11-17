@@ -17,5 +17,12 @@ public interface IHubRepository
     Task UpdateReportedConfigAsync(string hubId, int revision, string? configHash, string? displayMode, int? rotationSeconds, int? welcomeSeconds, string? historyRange, string? configJson, CancellationToken ct);
     Task UpdateDesiredConfigAsync(Guid id, int desiredRevision, string? desiredJson, CancellationToken ct);
     Task UpdateStatusAsync(string hubId, HubStatus status, DateTimeOffset seenAt, CancellationToken ct);
+    Task<IReadOnlyList<HubCommandReceipt>> GetCommandsAsync(Guid id, CancellationToken ct);
+    Task<bool> RecordCommandAsync(Guid id, Guid? tenantId, Guid? actorId, HubCommandReceipt command, CancellationToken ct);
+    Task<HubCommandReceipt?> GetCommandAsync(Guid id, string commandId, CancellationToken ct);
+    Task MarkPublishFailureAsync(Guid id, string commandId, CancellationToken ct);
+    Task ProcessCommandReplyAsync(string hubId, string subtopic, string json, DateTimeOffset receivedAt, CancellationToken ct);
+    Task CaptureMessageAsync(string hubId, HubCapturedMessage message, CancellationToken ct);
+    Task<HubMonitor> GetMonitorAsync(Guid id, DateTimeOffset dayStart, CancellationToken ct);
 }
 

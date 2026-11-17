@@ -7,6 +7,9 @@ using Bms.Protocols.Transports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using Bms.Protocols.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Bms.Api.Controllers;
 
@@ -14,7 +17,7 @@ namespace Bms.Api.Controllers;
 [ApiController]
 [Route("api/hubs")]
 [Authorize]
-public sealed class HubsController(IHubRepository hubs, IAuditLogRepository auditLog, MqttTransportAdapter mqtt) : BmsControllerBase
+public sealed class HubsController(IHubRepository hubs, IAuditLogRepository auditLog, MqttTransportAdapter mqtt, IConfiguration configuration, IOptions<MqttOptions> mqttOptions) : BmsControllerBase
 {
     [HttpGet]
     [Authorize(Roles = "SuperAdmin")]
@@ -55,6 +58,8 @@ public sealed class HubsController(IHubRepository hubs, IAuditLogRepository audi
             throw ApiException.BadRequest("HubId is required", "HUB_ID_REQUIRED");
 
         var cleanHubId = request.HubId.Trim().ToLowerInvariant();
+        if (!System.Text.RegularExpressions.Regex.IsMatch(cleanHubId, "^[a-f0-9]{12}$"))
+            throw ApiException.BadRequest("HUB ID must contain 12 hexadecimal characters.", "HUB_ID_INVALID");
         var existing = await hubs.GetByHubIdAsync(cleanHubId, ct);
         if (existing is not null)
             throw ApiException.BadRequest($"HUB with ID '{cleanHubId}' already exists", "HUB_ALREADY_EXISTS");
@@ -139,108 +144,137 @@ public sealed class HubsController(IHubRepository hubs, IAuditLogRepository audi
         return NoContent();
     }
 
-    /// <summary>Send a one-time command request to the PRO-TEC HUB (Section 6).</summary>
+    [HttpGet("{id:guid}/commands")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> Commands(Guid id, [FromQuery] Guid? tenantId, CancellationToken ct)
+    {
+        _ = await hubs.GetByIdAsync(EffectiveTenantFilter(tenantId), id, ct) ?? throw ApiException.NotFound("HUB not found", "HUB_NOT_FOUND");
+        return Ok(await hubs.GetCommandsAsync(id, ct));
+    }
+
+    [HttpGet("{id:guid}/monitor")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> Monitor(Guid id, [FromQuery] Guid? tenantId, [FromQuery] DateTimeOffset? dayStart, CancellationToken ct)
+    {
+        _ = await hubs.GetByIdAsync(EffectiveTenantFilter(tenantId), id, ct) ?? throw ApiException.NotFound("HUB not found", "HUB_NOT_FOUND");
+        var start = dayStart ?? new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
+        var monitor = await hubs.GetMonitorAsync(id, start, ct);
+        return Ok(new { monitor.Messages, monitor.CommandsToday, monitor.SuccessRate,
+            broker = new { connected = mqtt.IsConnected, tls = mqttOptions.Value.UseTls, host = mqttOptions.Value.Host, port = mqttOptions.Value.Port } });
+    }
+
     [HttpPost("{id:guid}/commands")]
     [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Command(Guid id, [FromQuery] Guid? tenantId, HubCommandRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.Action) || request.Action.Length > 64)
-            throw ApiException.BadRequest("A hub command action is required", "HUB_COMMAND_ACTION_REQUIRED");
-
-        if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
         var hub = await hubs.GetByIdAsync(EffectiveTenantFilter(tenantId), id, ct)
             ?? throw ApiException.NotFound("HUB not found", "HUB_NOT_FOUND");
-
+        var commandId = request.RequestId ?? $"cmd-{Guid.NewGuid():N}";
+        if (!System.Text.RegularExpressions.Regex.IsMatch(commandId, "^cmd-[a-f0-9]{32}$"))
+            throw ApiException.BadRequest("Invalid request ID.", "HUB_INVALID_REQUEST_ID");
+        JsonObject envelope;
+        JsonObject data;
+        try
+        {
+            data = JsonSerializer.SerializeToNode(request.Arguments ?? new Dictionary<string, object?>())!.AsObject();
+            envelope = HubProtocol.Build(request.Action, data, request.IfVersion, commandId);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException or JsonException)
+        {
+            throw ApiException.BadRequest(ex.Message, "HUB_INVALID_COMMAND");
+        }
+        var payloadHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(envelope)));
+        var topic = $"protec/hubs/{hub.HubId}/config";
+        // Resolve retries before checking the current version: a completed write may already have advanced it.
+        var savedCommand = await hubs.GetCommandAsync(hub.Id, commandId, ct);
+        if (savedCommand is not null)
+        {
+            if (savedCommand.PayloadHash != payloadHash) throw ApiException.BadRequest("Request ID already used for different parameters.", "HUB_DUPLICATE_ID");
+            return Accepted(new { topic, action = savedCommand.Action, commandId, state = savedCommand.State, deadline = savedCommand.Deadline, duplicate = true });
+        }
+        var snapshot = ParseSnapshot(hub);
+        if (!HubProtocol.IsReadOnly(request.Action))
+        {
+            if (!ApplyEnabled(hub)) throw ApiException.BadRequest("Remote apply is not verified for this HUB. Enable apply on the Pi, pass acceptance checks, then configure HubManagement:ApplyEnabledHubIds on the server.", "HUB_APPLY_DISABLED");
+            if (snapshot?["v"]?.GetValue<int>() != 2 || snapshot["config_version"]?.GetValue<int>() != request.IfVersion)
+                throw ApiException.BadRequest("Configuration version changed or no V2 snapshot is available. Request a fresh snapshot and review the form.", "HUB_VERSION_CONFLICT");
+            if (hub.LastSeenAt is null || hub.LastSeenAt < DateTimeOffset.UtcNow.AddMinutes(-5) || hub.LastHeartbeatAt is null || hub.LastHeartbeatAt < DateTimeOffset.UtcNow.AddMinutes(-5) || hub.Status != HubStatus.Online
+                || !DateTimeOffset.TryParse(snapshot["time_utc"]?.GetValue<string>(), out var generatedAt) || generatedAt < DateTimeOffset.UtcNow.AddMinutes(-5))
+                throw ApiException.BadRequest("HUB is offline or stale. Refresh state before applying changes.", "HUB_OFFLINE");
+            if (request.Action == "tv.select")
+            {
+                var inventory = snapshot["devices"] as JsonArray ?? [];
+                foreach (var sensor in data["sensors"]!.AsArray())
+                {
+                    var matches = inventory.Where(d => d?["source"]?.ToJsonString() == sensor!["source"]?.ToJsonString() && d?["site"]?.ToJsonString() == sensor!["site"]?.ToJsonString() && d?["sensor"]?.ToJsonString() == sensor!["sensor"]?.ToJsonString()).ToList();
+                    if (matches.Count != 1 || matches[0]?["age_seconds"] is not JsonValue age || !age.TryGetValue<double>(out var seconds) || seconds + (DateTimeOffset.UtcNow - generatedAt).TotalSeconds > 18000)
+                        throw ApiException.BadRequest("Unknown, ambiguous or older-than-five-hours sensor. Review current inventory.", "HUB_SENSOR_UNAVAILABLE");
+                }
+            }
+        }
         var now = DateTimeOffset.UtcNow;
-        // Slice the generated string, not the Guid format specifier.  Using
-        // `:N[..6]` is parsed as an invalid Guid format and causes every
-        // command request to fail with HTTP 500 before it is published.
-        var commandNonce = Guid.NewGuid().ToString("N")[..6];
-        var commandId = $"cmd-{now:yyyyMMddHHmmss}-{commandNonce}";
-        var envelope = new Dictionary<string, object?>
+        // Keep the actor and deadline durably before publishing. Never store logo bytes in audit history.
+        var journalData = (JsonObject)data.DeepClone();
+        if (request.Action == "logo.chunk") journalData.Remove("base64");
+        if (request.Action == "logo.commit") journalData["previous_logo_revision"] = snapshot?["branding"]?["client_logo_revision"]?.DeepClone();
+        var receipt = new HubCommandReceipt(commandId, request.Action, "pending", now, now.AddMinutes(2), request.IfVersion, journalData, PayloadHash: payloadHash, Payload: HubProtocol.Redact(envelope.ToJsonString()));
+        if (!await hubs.RecordCommandAsync(hub.Id, hub.TenantId, CurrentUserId, receipt, ct))
         {
-            ["schema"] = "protec.hub.command.request.v1",
-            ["hub_id"] = hub.HubId,
-            ["command_id"] = commandId,
-            ["action"] = request.Action,
-            ["arguments"] = request.Arguments ?? new Dictionary<string, object?>(),
-            ["issued_at"] = now.ToString("o"),
-            ["expires_at"] = now.AddMinutes(2).ToString("o")
-        };
-
-        var topic = $"protec/hubs/{hub.HubId}/command/request";
-        await mqtt.SendAsync(topic, JsonSerializer.SerializeToUtf8Bytes(envelope), ct);
-
-        await auditLog.AddAsync(new AuditLog
+            var original = await hubs.GetCommandAsync(hub.Id, commandId, ct);
+            if (original?.PayloadHash != payloadHash) throw ApiException.BadRequest("Request ID already used. Allocate a new ID for changed parameters.", "HUB_DUPLICATE_ID");
+            return Accepted(new { topic, action = original.Action, commandId, state = original.State, deadline = original.Deadline, duplicate = true });
+        }
+        try { await mqtt.PublishAsync(topic, JsonSerializer.SerializeToUtf8Bytes(envelope), retain: false, ct, expirySeconds: 120); }
+        catch
         {
-            TenantId = hub.TenantId,
-            UserId = CurrentUserId,
-            Action = "Hub.Command",
-            EntityType = nameof(Hub),
-            EntityId = hub.Id.ToString(),
-            DetailsJson = JsonSerializer.Serialize(new { request.Action, commandId, topic })
-        }, ct);
-
-        return Accepted(new { topic, action = request.Action, commandId });
+            await hubs.MarkPublishFailureAsync(hub.Id, commandId, CancellationToken.None);
+            throw;
+        }
+        return Accepted(new { topic, action = request.Action, commandId, state = "pending", deadline = receipt.Deadline });
     }
 
-    /// <summary>Deploy desired configuration patch to the PRO-TEC HUB (Section 5).</summary>
+    [HttpGet("{id:guid}/commands/prepare")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> Prepare(Guid id, [FromQuery] Guid? tenantId, CancellationToken ct)
+    {
+        _ = await hubs.GetByIdAsync(EffectiveTenantFilter(tenantId), id, ct) ?? throw ApiException.NotFound("HUB not found", "HUB_NOT_FOUND");
+        return Ok(new { requestId = $"cmd-{Guid.NewGuid():N}" });
+    }
+
+    // Preserve the HTTP entry point while translating supported timing fields to V2.
+    // RC1 has no operation for changing display mode or history range.
     [HttpPost("{id:guid}/config/desired")]
     [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> SetDesiredConfig(Guid id, [FromQuery] Guid? tenantId, HubDesiredConfigRequest request, CancellationToken ct)
     {
-        if (tenantId is { } requestedTenant) RequireTenantAccess(requestedTenant);
         var hub = await hubs.GetByIdAsync(EffectiveTenantFilter(tenantId), id, ct)
             ?? throw ApiException.NotFound("HUB not found", "HUB_NOT_FOUND");
-
-        var now = DateTimeOffset.UtcNow;
-        var requestNonce = Guid.NewGuid().ToString("N")[..6];
-        var requestId = $"cfg-{now:yyyyMMddHHmmss}-{requestNonce}";
-        var nextRevision = hub.ConfigRevision + 1;
-
-        var patch = new Dictionary<string, object?>();
-        if (!string.IsNullOrWhiteSpace(request.DisplayMode))
-            patch["display_mode"] = request.DisplayMode;
-        if (request.RotationSeconds.HasValue)
-            patch["rotation_seconds"] = request.RotationSeconds.Value;
-        if (request.WelcomeSeconds.HasValue)
-            patch["welcome_seconds"] = request.WelcomeSeconds.Value;
-        if (!string.IsNullOrWhiteSpace(request.HistoryRange))
-            patch["history_range"] = request.HistoryRange;
-
-        var envelope = new Dictionary<string, object?>
+        if ((!string.IsNullOrWhiteSpace(request.DisplayMode) && request.DisplayMode != hub.DisplayMode)
+            || (!string.IsNullOrWhiteSpace(request.HistoryRange) && request.HistoryRange != hub.HistoryRange))
+            throw ApiException.BadRequest("The installed RC1 contract supports timing changes through display.set; changing display mode or history range is unsupported.", "HUB_UNSUPPORTED_SETTING");
+        var data = new Dictionary<string, object?>
         {
-            ["schema"] = "protec.hub.config.desired.v1",
-            ["hub_id"] = hub.HubId,
-            ["request_id"] = requestId,
-            ["desired_revision"] = nextRevision,
-            ["expected_reported_revision"] = hub.ConfigRevision,
-            ["issued_at"] = now.ToString("o"),
-            ["expires_at"] = now.AddMinutes(5).ToString("o"),
-            ["patch"] = patch
+            ["welcome_seconds"] = request.WelcomeSeconds ?? hub.WelcomeSeconds,
+            ["rotation_seconds"] = request.RotationSeconds ?? hub.RotationSeconds
         };
-
-        var topic = $"protec/hubs/{hub.HubId}/config/desired";
-        var jsonBytes = JsonSerializer.SerializeToUtf8Bytes(envelope);
-        await mqtt.SendAsync(topic, jsonBytes, ct);
-
-        var desiredJson = JsonSerializer.Serialize(envelope);
-        await hubs.UpdateDesiredConfigAsync(hub.Id, nextRevision, desiredJson, ct);
-
-        await auditLog.AddAsync(new AuditLog
-        {
-            TenantId = hub.TenantId,
-            UserId = CurrentUserId,
-            Action = "Hub.ConfigDesired",
-            EntityType = nameof(Hub),
-            EntityId = hub.Id.ToString(),
-            DetailsJson = JsonSerializer.Serialize(new { requestId, nextRevision, topic, patch })
-        }, ct);
-
-        return Accepted(new { topic, requestId, desiredRevision = nextRevision, patch });
+        var result = await Command(id, tenantId, new HubCommandRequest("display.set", data, hub.ConfigRevision), ct);
+        if (result is not AcceptedResult accepted) return result;
+        var command = JsonSerializer.SerializeToElement(accepted.Value);
+        var desiredRevision = hub.ConfigRevision + 1;
+        await hubs.UpdateDesiredConfigAsync(hub.Id, desiredRevision, JsonSerializer.Serialize(new { operation = "display.set", if_version = hub.ConfigRevision, data, state = "pending" }), ct);
+        return Accepted(new { topic = command.GetProperty("topic").GetString(), requestId = command.GetProperty("commandId").GetString(), desiredRevision, patch = data, state = "pending" });
     }
 
-    private static HubDto Map(Hub h)
+    private static JsonObject? ParseSnapshot(Hub hub)
+    {
+        try { return hub.LastStatusJson is { } json ? JsonNode.Parse(json) as JsonObject : null; }
+        catch (JsonException) { return null; }
+    }
+
+    private bool ApplyEnabled(Hub hub) => configuration.GetSection("HubManagement:ApplyEnabledHubIds").Get<string[]>()?.Contains(hub.HubId, StringComparer.OrdinalIgnoreCase) == true
+        && ParseSnapshot(hub)?["capabilities"]?["allow_apply"]?.GetValue<bool>() != false;
+
+    private HubDto Map(Hub h)
     {
         var siteName = h.Site?.Name ?? "— Unassigned —";
         var tenantName = h.Tenant?.Name ?? h.Site?.Tenant?.Name;
@@ -253,7 +287,7 @@ public sealed class HubsController(IHubRepository hubs, IAuditLogRepository audi
             siteName,
             h.HubId,
             h.Name,
-            h.Status.ToString(),
+            h.Status == HubStatus.Online && (h.LastSeenAt is null || h.LastSeenAt < DateTimeOffset.UtcNow.AddMinutes(-5)) ? "Stale" : h.Status.ToString(),
             h.IpAddress,
             h.AppVersion,
             h.AgentVersion,
@@ -272,7 +306,8 @@ public sealed class HubsController(IHubRepository hubs, IAuditLogRepository audi
             h.LastConfigSyncAt,
             h.DesiredConfigJson,
             h.ReportedConfigJson,
-            h.LastStatusJson
+            h.LastStatusJson,
+            ApplyEnabled(h)
         );
     }
 }

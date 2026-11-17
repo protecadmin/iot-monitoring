@@ -25,4 +25,5 @@ public sealed record TransportMessage(
 
     /// <summary>True when the broker marked this as a redelivery of a message sent before a reconnect.</summary>
     public bool IsRedelivery { get; init; }
+    public bool IsRetained { get; init; }
 }

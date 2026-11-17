@@ -330,7 +330,12 @@ body {
 }
 .protec-watermark-subtle { opacity: .075; }
 .protec-watermark-strong { opacity: .1; }
-.protec-page { position: relative; z-index: 1; }
+/* No z-index here: it would make the page its own stacking context, trapping
+   every modal/overlay rendered inside it beneath the header (z-index 50) no
+   matter how high their own z-index is. Positioned with z-index auto, the page
+   still paints above the watermark (which comes first in the DOM), and <main>'s
+   overflow keeps page content from ever overlapping the header. */
+.protec-page { position: relative; }
 .protec-header .min-w-0.rounded-lg {
   background: rgb(255 248 239 / 88%);
   border: 1px solid rgb(255 255 255 / 52%);

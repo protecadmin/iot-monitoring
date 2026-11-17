@@ -55,9 +55,9 @@ export function Modal({
   }, []);
 
   return (
-    // z-[2000]: Leaflet's own panes/controls (see DeviceMap) use z-index
-    // values up to 1000 and don't establish their own stacking context, so
-    // a lower z-index here gets painted over by the map on pages that show both.
+    // z-[2000]: stays above the header (50), sidebar (60) and any Leaflet
+    // panes (up to 1000). This only works while no ancestor (e.g. .protec-page)
+    // sets its own z-index — that would trap the dialog beneath the header.
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]" onClick={onClose}>
       <div
         ref={dialogRef}

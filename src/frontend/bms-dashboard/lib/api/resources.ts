@@ -168,8 +168,11 @@ export const HubsApi = {
   update: (id: string, body: { name: string; siteId?: string; ipAddress?: string; appVersion?: string; agentVersion?: string; securityMode?: string }) =>
     api.put<HubDto>(`/api/hubs/${id}`, body),
   remove: (id: string) => api.delete<void>(`/api/hubs/${id}`),
-  command: (id: string, action: string, args: Record<string, unknown> = {}) =>
-    api.post<{ topic: string; action: string; commandId: string }>(`/api/hubs/${id}/commands`, { action, arguments: args }),
+  commands: (id: string) => api.get<import("@/lib/hubs").HubCommand[]>(`/api/hubs/${id}/commands`),
+  monitor: (id: string, dayStart: string) => api.get<import("@/lib/hubs").HubMonitor>(`/api/hubs/${id}/monitor${toQuery({ dayStart })}`),
+  prepare: (id: string) => api.get<{ requestId: string }>(`/api/hubs/${id}/commands/prepare`),
+  command: (id: string, action: string, args: Record<string, unknown> = {}, ifVersion?: number, requestId?: string) =>
+    api.post<{ topic: string; action: string; commandId: string; deadline: string }>(`/api/hubs/${id}/commands`, { action, arguments: args, ifVersion, requestId }),
   setDesiredConfig: (id: string, patch: { displayMode?: string; rotationSeconds?: number; welcomeSeconds?: number; historyRange?: string }) =>
     api.post<{ topic: string; requestId: string; desiredRevision: number; patch: Record<string, unknown> }>(`/api/hubs/${id}/config/desired`, patch),
 };

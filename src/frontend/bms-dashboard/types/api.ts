@@ -434,6 +434,7 @@ export interface MqttCredentialDto {
 
 
 export interface HubDto {
+  remoteApplyEnabled: boolean;
   id: string;
   tenantId: string | null;
   tenantName?: string | null;

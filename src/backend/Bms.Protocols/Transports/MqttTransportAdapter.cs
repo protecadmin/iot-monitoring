@@ -97,7 +97,8 @@ public sealed class MqttTransportAdapter : ITransportAdapter
             DateTimeOffset.UtcNow)
         {
             AcknowledgeAsync = AcknowledgeAsync,
-            IsRedelivery = args.ApplicationMessage.Dup
+            IsRedelivery = args.ApplicationMessage.Dup,
+            IsRetained = args.ApplicationMessage.Retain
         };
 
         var handler = MessageReceived;
@@ -301,14 +302,15 @@ public sealed class MqttTransportAdapter : ITransportAdapter
     public Task SendAsync(string address, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken) =>
         PublishAsync(address, payload, retain: false, cancellationToken);
 
-    public async Task PublishAsync(string topic, ReadOnlyMemory<byte> payload, bool retain, CancellationToken cancellationToken)
+    public async Task PublishAsync(string topic, ReadOnlyMemory<byte> payload, bool retain, CancellationToken cancellationToken, uint? expirySeconds = null)
     {
-        var message = new MqttApplicationMessageBuilder()
+        var builder = new MqttApplicationMessageBuilder()
             .WithTopic(topic)
             .WithPayload(payload.ToArray())
             .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
-            .WithRetainFlag(retain)
-            .Build();
+            .WithRetainFlag(retain);
+        if (expirySeconds is { } expiry) builder.WithMessageExpiryInterval(expiry);
+        var message = builder.Build();
 
         await _client.PublishAsync(message, cancellationToken);
     }

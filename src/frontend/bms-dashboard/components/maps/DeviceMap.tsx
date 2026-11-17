@@ -109,7 +109,8 @@ export function DeviceMap({
 
   return (
     <div>
-      <div style={{ height }} className="rounded-md overflow-hidden border border-border">
+      {/* isolate: Leaflet's panes/controls use z-index up to 1000; keep them inside the map so they can't paint over the mobile sidebar or page overlays. */}
+      <div style={{ height }} className="isolate rounded-md overflow-hidden border border-border">
         <MapContainer center={[valid[0].latitude, valid[0].longitude]} zoom={11} style={{ height: "100%", width: "100%" }}>
           <TileLayer
             attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> — Sources: <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
