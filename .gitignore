@@ -64,6 +64,13 @@ Thumbs.db
 logs/
 tests/reliability/.generated/
 
+# ---- Test / build output ----
+TestResults/
+coverage/
+dist/
+build/
+*.tsbuildinfo
+
 # Local scratch notes holding real MQTT passwords — never commit.
 simulators/python-publisher/python text.txt
 

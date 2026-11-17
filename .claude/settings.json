@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/node_modules/**)",
+      "Read(**/package-lock.json)",
+      "Read(**/*.tsbuildinfo)",
+      "Read(**/.next/**)",
+      "Read(**/out/**)",
+      "Read(**/dist/**)",
+      "Read(**/build/**)",
+      "Read(**/bin/**)",
+      "Read(**/obj/**)",
+      "Read(**/.tmp-ingest-publish/**)",
+      "Read(**/TestResults/**)",
+      "Read(**/coverage/**)",
+      "Read(**/bms-dashboard/public/brand/**)",
+      "Read(**/bms-dashboard/public/images/**)",
+      "Read(**/docs/**/*.pdf)",
+      "Read(**/docs/**/*.docx)",
+      "Read(**/docs/**/*.png)",
+      "Read(**/Monochrome Construction Site Panorama.png)"
+    ]
+  }
+}
